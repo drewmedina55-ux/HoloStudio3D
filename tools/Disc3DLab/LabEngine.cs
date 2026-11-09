@@ -206,6 +206,8 @@ internal sealed class LabEngine : ILabBackend
         Action<double, string> progress, Action<string> log, CancellationToken cancel)
     {
         StereoPairLayout layout = new(request);
+        if (request.TestPatches)
+            return MakeDisc(layout, DvdGeometry.Find(request.Preset), folder, SafeName(name, "hologram-test-patches"), progress, log, cancel);
         return MakeDisc(layout, DvdGeometry.Find(request.Preset), folder, SafeName(name, "hologram"), progress, log, cancel,
             stem => layout.SaveViews(stem + "-views.png"));
     }

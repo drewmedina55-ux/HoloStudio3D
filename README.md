@@ -303,8 +303,18 @@ image at one eye.
   left-right, so both may show at the same time. The L/R test tiles are drawn on top of the bottom
   copy; untick them for a clean disc. Command line: `--copies N`, `--upright-bottom`.
 - **Dither detail:** *Fine* (0.05 mm cells, the default), *Normal* (0.1 mm) or *Coarse* (0.2 mm),
-  or `--detail MM`. Grays are now spread with error diffusion in both directions, so the grain is
-  much finer than before. If a Fine burn looks faint or washed out, try Normal.
+  or `--detail MM`. Grays are spread with error diffusion, separately for each view's own cells, so
+  every view keeps the same gray level (before v1.02 a mid-gray could come out much brighter for
+  one eye than the other). If a Fine burn looks faint or washed out, try Normal.
+- **Off areas:** what fills the dark parts of the picture. *Random mix* is the original texture,
+  but it contains the view patterns too, so it isn't fully dark for your eyes. *Fixed, aimed away*
+  (`--off-fixed`, experimental) fills them with one pattern (92, about 15°) that sends its light
+  away from both eyes, for possibly better contrast.
+- **Test-patch disc** (`--test-patches`): eight matched 8 mm patches at 12 o'clock (all off, left
+  only, right only, both on, once with each kind of off area), plus the L/R tiles. Fix the disc
+  and lamp, photograph from where each eye would be with the same exposure, and compare: it shows
+  directly whether each eye gets its own view and which off area gives better contrast. The key
+  file explains what to look for. Suggested by Ashley-QwQ, disc-probe's author.
 - **Viewing:** picture at the top, about your chosen distance away, with one small light off to
   the side (not between your eyes). With more than 2 views, move your head slowly left and right.
   If the depth looks inside-out, tick *Swap eyes*.

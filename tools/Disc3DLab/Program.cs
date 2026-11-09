@@ -90,6 +90,9 @@ internal static class Program
           --move-y MM       slide the picture up toward the rim (+) or down (-), up to 30 mm
           --copies N        repeat the picture around the disc, 1-8 (each upright when turned to the top)
           --upright-bottom  with --copies 2: keep the bottom copy upright, so both show at once
+          --off-fixed       fill "off" areas with one pattern aimed away from your eyes (better contrast?)
+          --test-patches    make the test-patch disc (all off / left / right / both, two off textures);
+                            needs no picture
           --detail MM       dither cell size: 0.05 fine (default), 0.1 normal, 0.2 coarse
           --no-test         leave out the L/R test tiles at 6 o'clock
           --out, --preset, --threads   as above
@@ -206,6 +209,8 @@ internal static class Program
             OffsetXMm = o.Double("--move-x", 0),
             OffsetYMm = o.Double("--move-y", 0),
             Copies = o.Int("--copies", 1),
+            OffMode = o.Has("--off-fixed") ? "fixed" : "mix",
+            TestPatches = o.Has("--test-patches"),
             UprightBottom = o.Has("--upright-bottom"),
             CellMm = o.Double("--detail", .05),
             TestStrips = !o.Has("--no-test"),
@@ -217,15 +222,18 @@ internal static class Program
             if (pair.Length != 2) throw new ArgumentException("--pair needs two patterns, e.g. B9,92 (left,right).");
             request.PairLeft = pair[0]; request.PairRight = pair[1];
         }
-        if (request.Mode == "two" && (request.LeftFile is null || request.RightFile is null))
+        if (!request.TestPatches && request.Mode == "two" && (request.LeftFile is null || request.RightFile is null))
             throw new ArgumentException("Give --image FILE --depthmap FILE, --model FILE, --frames A,B,C, --sbs FILE, or both --left FILE and --right FILE.");
         if (request.Mode == "depth" && request.DepthFile is null) throw new ArgumentException("--image needs --depthmap FILE too.");
         StereoPairLayout layout = new(request);
         DvdGeometry geometry = DvdGeometry.Find(request.Preset);
-        string output = o.OutPath("hologram.iso");
+        string output = o.OutPath(request.TestPatches ? "hologram-test-patches.iso" : "hologram.iso");
         WriteKeyAndMap(layout, geometry, output);
-        layout.SaveViews(Path.ChangeExtension(output, null) + "-views.png");
-        Console.WriteLine($"Views (left-most first): {Path.ChangeExtension(output, null)}-views.png");
+        if (!request.TestPatches)
+        {
+            layout.SaveViews(Path.ChangeExtension(output, null) + "-views.png");
+            Console.WriteLine($"Views (left-most first): {Path.ChangeExtension(output, null)}-views.png");
+        }
         Console.WriteLine($"Generating the full DVD image ({geometry.Sectors * 2048L / 1e9:0.0} GB). This takes a while...");
         WriteWithCtrlC(layout, geometry, output, o);
         PrintBurnHint(output);

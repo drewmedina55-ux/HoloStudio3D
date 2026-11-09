@@ -410,6 +410,8 @@ namespace Disc3DLab
         private Slider _pairViews, _pairYaw, _pairPitch, _pairTurn, _pairZoom, _pairMoveX, _pairMoveY;
         private Segmented _pairCopies;
         private CheckBox _pairUpright;
+        private Segmented _pairOff;
+        private LabButton _pairPatches;
         private string _pairModelFile;
         private string[] _pairFrameFiles;
         private Label _pairChoiceLabel, _pairViewsHint, _pairFramesHint;
@@ -1644,6 +1646,11 @@ namespace Disc3DLab
             _pairTest = Add(col, new CheckBox { Text = "Add L/R test tiles at 6 o'clock", Checked = true, ForeColor = Theme.Text, Height = 26 });
             _pairTest.CheckedChanged += (s, e) => QueuePair();
 
+            Section(col, "Off areas");
+            _pairOff = Add(col, new Segmented(("mix", "Random mix"), ("fixed", "Fixed, aimed away")), 0, 4);
+            _pairOff.Changed += (s, e) => QueuePair();
+            Hint(col, "What fills the dark parts of the picture. Random mix is the original. Fixed (experimental, suggested by disc-probe's author) uses one pattern that sends its light away from your eyes, for possibly better contrast. The test-patch disc below compares both.");
+
             Section(col, "Your DVD");
             Add(col, PresetCombo(), 0, 4);
             Hint(col, "Use your measured preset (\"Yours:\") so the picture lands where it should, not streaked.", Theme.Muted);
@@ -1653,6 +1660,9 @@ namespace Disc3DLab
             _pairStart = Add(col, new LabButton("Make hologram disc  (4.7 GB)", LabButton.Kind.Spectrum) { Height = 42, Enabled = false }, 8, 8);
             _pairStart.Click += (s, e) => StartJob("pair");
             Hint(col, "All the views it builds are saved next to the .iso as -views.png (left-most first) so you can check them. View with one small light off to the SIDE. Close one eye, then the other: each should see its own view.");
+            _pairPatches = Add(col, new LabButton("Make test-patch disc  (no picture needed)") { Height = 36 }, 4, 4);
+            _pairPatches.Click += (s, e) => StartJob("patches");
+            Hint(col, "Eight matched patches (all off / left only / right only / both on, with each kind of off area) for a photo test of whether each eye really gets its own view. Uses the viewing distance, pattern pair and DVD above; the key says how to photograph it.");
 
             _pairPicture = Picture();
             _pairKey = KeyBox();
@@ -1748,6 +1758,7 @@ namespace Disc3DLab
                 Large = _pairSize.Value == "large",
                 OffsetXMm = _pairMoveX.Value, OffsetYMm = _pairMoveY.Value,
                 Copies = int.Parse(_pairCopies.Value, CultureInfo.InvariantCulture), UprightBottom = _pairUpright.Checked,
+                OffMode = _pairOff.Value,
                 CellMm = double.Parse(_pairDetail.Value, System.Globalization.CultureInfo.InvariantCulture),
                 TestStrips = _pairTest.Checked, Preset = Preset,
                 ViewCount = (int)Math.Round(_pairViews.Value), FrameFiles = _pairFrameFiles,
@@ -1800,7 +1811,7 @@ namespace Disc3DLab
 
         // ───────────── about page ─────────────
 
-        internal const string AppVersion = "v1.01";
+        internal const string AppVersion = "v1.02";
         internal const string WebsiteUrl = "https://drewmedina.com";
         internal const string DisRepoUrl = "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio";
         internal const string ProbeRepoUrl = "https://github.com/Ashley-QwQ/disc-probe";
@@ -1955,17 +1966,18 @@ namespace Disc3DLab
         {
             if (_jobTask != null && !_jobTask.IsCompleted) return;
             string folder = Folder;
-            string name = kind == "test" ? _testName.Text : kind == "pair" ? _pairName.Text : _tiltName.Text;
+            string name = kind == "test" ? _testName.Text : kind == "pair" ? _pairName.Text : kind == "patches" ? "hologram-test-patches" : _tiltName.Text;
             string preset = Preset;
             TiltRequest tilt = kind == "tilt" ? TiltRequest() : null;
             if (kind == "tilt" && tilt.Layers.Count == 0) return;
-            StereoPairRequest pair = kind == "pair" ? PairRequest() : null;
+            StereoPairRequest pair = kind == "pair" || kind == "patches" ? PairRequest() : null;
             if (kind == "pair" && !PairReady()) return;
+            if (kind == "patches") pair.TestPatches = true;
 
             _jobCancelSource = new CancellationTokenSource();
             CancellationToken token = _jobCancelSource.Token;
             _jobOutput = null;
-            _jobTitle.Text = kind == "test" ? "Rainbow test disc" : kind == "pair" ? "Hologram disc" : "Tilt-image disc";
+            _jobTitle.Text = kind == "test" ? "Rainbow test disc" : kind == "pair" ? "Hologram disc" : kind == "patches" ? "Hologram test-patch disc" : "Tilt-image disc";
             _jobStatus.Text = "Starting…";
             _jobStatus.ForeColor = Theme.Muted;
             _jobProgress.Solid = null;
@@ -1973,7 +1985,7 @@ namespace Disc3DLab
             _jobCancel.Visible = true; _jobShow.Visible = false; _jobClose.Visible = false;
             _jobBar.Visible = true;
             LayoutJobBar();
-            _testStart.Enabled = false; _tiltStart.Enabled = false; _pairStart.Enabled = false;
+            _testStart.Enabled = false; _tiltStart.Enabled = false; _pairStart.Enabled = false; _pairPatches.Enabled = false;
 
             Action<double, string> progress = (fraction, text) => BeginInvokeSafe(() =>
             {
@@ -1982,7 +1994,7 @@ namespace Disc3DLab
             });
             Action<string> log = line => { };
             _jobTask = Task.Run(() => kind == "test" ? _backend.MakeTestDisc(preset, folder, name, progress, log, token)
-                    : kind == "pair" ? _backend.MakeStereoPairDisc(pair, folder, name, progress, log, token)
+                    : kind == "pair" || kind == "patches" ? _backend.MakeStereoPairDisc(pair, folder, name, progress, log, token)
                     : _backend.MakeTiltDisc(tilt, folder, name, progress, log, token))
                 .ContinueWith(t => BeginInvokeSafe(() => FinishJob(t)), TaskScheduler.Default);
         }
@@ -2013,6 +2025,7 @@ namespace Disc3DLab
             _testStart.Enabled = true;
             _tiltStart.Enabled = _layers.Any(l => l != null);
             _pairStart.Enabled = PairReady();
+            _pairPatches.Enabled = true;
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)

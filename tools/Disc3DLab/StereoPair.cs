@@ -20,6 +20,10 @@ internal sealed class StereoPairLayout : IDiffractionLayout
     private readonly double _offsetX, _offsetY; // where the picture was moved to, mm (right, up)
     private readonly int _copies;       // copies around the disc
     private readonly bool _uprightBottom;
+    private readonly int _off;          // grating index used for "off" cells
+    private readonly bool _offFixed;    // off cells use one fixed pattern aimed away from the eyes
+    private readonly Grating _offGrating;
+    private readonly List<(double X, double Y, int Kind, bool Fixed, int Number)> _patches; // test-patch disc
 
     // Gratings with one clean period. The four gray-palette bytes are the strongest.
     private static readonly string[] Clean = ["A5", "9C", "66", "CE", "B9", "9A", "92"];
@@ -38,18 +42,27 @@ internal sealed class StereoPairLayout : IDiffractionLayout
     private readonly LabelMask _labels = new();
     private readonly int _labelInk, _labelPaper;
     private readonly bool _testTiles;
+    private readonly int _patchFixed;
+    private readonly double _patchSize;
 
     public StereoPairLayout(StereoPairRequest r)
     {
         DistanceCm = r.DistanceCm;
-        _testTiles = r.TestStrips;
-        Views = ChooseViews(r);
+        _testTiles = r.TestStrips || r.TestPatches;
+        if (r.TestPatches)
+        {
+            (Grating left, Grating right) = ChoosePair(r);
+            Views = [left, right];
+        }
+        else Views = ChooseViews(r);
         _n = Views.Length;
         PairLeft = Views[0]; PairRight = Views[^1];
         // Spread the views evenly: neighbouring cells in a row always belong to different views.
         _stride = _n == 2 ? 1 : _n >= 4 ? 2 : 1;
 
-        (double aspect, string[] names, Func<int, double[]> view) = PlanViews(r, Positions(r, Views));
+        (double aspect, string[] names, Func<int, double[]> view) = r.TestPatches
+            ? (1.0, ["left eye", "right eye"], _ => [0, 1, 1]) // no picture on the test-patch disc
+            : PlanViews(r, Positions(r, Views));
         Names = names;
 
         _cell = Math.Clamp(r.CellMm, .03, .3);
@@ -95,13 +108,48 @@ internal sealed class StereoPairLayout : IDiffractionLayout
         for (int i = 0; i < _n; i++)
         {
             double[] grid = view(i);
-            _views[i] = Dither(Resample(grid, _nx, _ny), _nx, r.Dither, r.Threshold);
+            _views[i] = DitherView(Resample(grid, _nx, _ny), _nx, _n, _stride, i, r.Dither, r.Threshold);
             _previews[i] = Resample(grid, _previewW, _previewH);
         }
 
         List<Grating> gratings = [.. Views, Grating.Random];
         _random = _n;
-        if (r.TestStrips)
+        // "Off" cells: the random mix (still contains the view patterns, so it isn't truly dark for
+        // the eyes), or one fixed pattern aimed well away from every view (Ashley-QwQ's suggestion:
+        // 92, or the clean pattern farthest from the views if a view already uses 92).
+        _offGrating = FixedOff(Views);
+        _offFixed = r.OffMode == "fixed";
+        _off = _random;
+        if (_offFixed || r.TestPatches)
+        {
+            gratings.Add(_offGrating);
+            if (_offFixed) _off = gratings.Count - 1;
+        }
+        int fixedIndex = gratings.Count - 1;
+        if (r.TestPatches)
+        {
+            // Matched patches for the first optical test: all off, left only, right only, both on,
+            // once with the random-mix off texture (top row) and once with the fixed off pattern.
+            _patches = [];
+            const double size = 8, gap = 2;
+            double rowWidth = 4 * size + 3 * gap;
+            for (int row = 0; row < 2; row++)
+            for (int k = 0; k < 4; k++)
+            {
+                double cx0 = -rowWidth / 2 + k * (size + gap) + size / 2;
+                double cy0 = row == 0 ? -47 : -36;
+                _patches.Add((cx0, cy0, k, row == 1, row * 4 + k + 1));
+            }
+            _patchFixed = fixedIndex;
+            _patchSize = size;
+            foreach ((double px0, double py0, int _, bool _, int number) in _patches)
+            {
+                double angle = Math.Atan2(px0, -py0), radius = Math.Sqrt(px0 * px0 + py0 * py0);
+                _labels.Draw(number.ToString(System.Globalization.CultureInfo.InvariantCulture), angle,
+                    py0 < -40 ? radius + size / 2 + 2.2 : radius - size / 2 - 2.2, .2);
+            }
+        }
+        if (_testTiles)
         {
             // Five L/R tiles around 6 o'clock, rotated 180° so they read upright when turned to the top.
             for (int i = 0; i < TestPairs.Length; i++)
@@ -234,6 +282,7 @@ internal sealed class StereoPairLayout : IDiffractionLayout
             if (tile >= 0) return tile;
         }
         if (!IsReadable(x, y)) return _random;
+        if (_patches != null) return PatchAt(x, y);
 
         // Copies: the disc is cut into equal slices and each slice shows the picture turned to face
         // out from the centre, so whichever copy is turned to 12 o'clock is upright, with its tracks
@@ -255,8 +304,35 @@ internal sealed class StereoPairLayout : IDiffractionLayout
         if (px >= _boxX && px < _boxX + _boxW && py >= _boxY && py < _boxY + _boxH)
         {
             int ix = Math.Min(_nx - 1, (int)((px - _boxX) / _boxW * _nx)), iy = Math.Min(_ny - 1, (int)((py - _boxY) / _boxH * _ny));
-            int view = ((cx + _stride * cy) % _n + _n) % _n; // 2 views: a checkerboard
-            return _views[view][iy * _nx + ix] ? view : _random;
+            int view = ((ix + _stride * iy) % _n + _n) % _n; // 2 views: a checkerboard
+            return _views[view][iy * _nx + ix] ? view : _off;
+        }
+        return _offFixed ? _off : _random;
+    }
+
+    /// <summary>
+    /// The "off" pattern aimed away from the eyes: 92 (~15° green), or, if a view already uses 92,
+    /// the clean pattern whose angle is farthest from every view.
+    /// </summary>
+    internal static Grating FixedOff(Grating[] views)
+    {
+        if (!views.Any(v => v.Code == "92")) return Grating.FromCode("92");
+        string best = Clean.Concat(["93"]).Where(c => !views.Any(v => v.Code == c))
+            .OrderByDescending(c => views.Min(v => Math.Abs(Green(c) - v.AngleDegrees(550, 133.3))))
+            .First();
+        return Grating.FromCode(best);
+    }
+
+    /// <summary>The test-patch disc: which pattern a point in (or around) the patches gets.</summary>
+    private int PatchAt(double x, double y)
+    {
+        int cx = (int)Math.Floor((x + 60) / _cell), cy = (int)Math.Floor((y + 60) / _cell);
+        bool leftCell = ((cx + cy) & 1) == 0;
+        foreach ((double px0, double py0, int kind, bool fixedOff, int _) in _patches)
+        {
+            if (Math.Abs(x - px0) > _patchSize / 2 || Math.Abs(y - py0) > _patchSize / 2) continue;
+            bool on = kind == 3 || (kind == 1 && leftCell) || (kind == 2 && !leftCell);
+            return on ? (leftCell ? 0 : 1) : fixedOff ? _patchFixed : _random;
         }
         return _random;
     }
@@ -302,6 +378,7 @@ internal sealed class StereoPairLayout : IDiffractionLayout
 
     public string Describe(DvdGeometry g)
     {
+        if (_patches != null) return DescribePatches(g);
         double target = TargetSeparation(DistanceCm);
         string A(Grating gr) => string.Join(" / ", new[] { 450.0, 550, 650 }.Select(w => gr.AngleDegrees(w, g.BitNm)).Select(a => double.IsNaN(a) ? "--" : $"{a:0.0}"));
         var lines = new List<string>
@@ -328,6 +405,9 @@ internal sealed class StereoPairLayout : IDiffractionLayout
             $", moved {Math.Abs(_offsetX):0.#} mm {(_offsetX < 0 ? "left" : "right")} and {Math.Abs(_offsetY):0.#} mm {(_offsetY < 0 ? "down" : "up")}";
         string copies = _copies == 1 ? "" : _uprightBottom ? ", 2 copies (top and bottom, both upright)"
             : $", {_copies} copies around the disc (each upright when turned to the top)";
+        lines.Add(_offFixed
+            ? $"Off areas: fixed pattern {_offGrating.Code} (~{_offGrating.AngleDegrees(550, g.BitNm):0.0} deg green, aimed away from your eyes)."
+            : "Off areas: random mix (the original texture).");
         lines.Add($"Picture: {WidthMm:0.0} x {HeightMm:0.0} mm at 12 o'clock{(_large ? ", large (edges clipped by the disc)" : "")}{moved}{copies}, " +
             $"{_n} views interleaved in {_cell:0.###} mm cells.");
         lines.AddRange(
@@ -360,6 +440,44 @@ internal sealed class StereoPairLayout : IDiffractionLayout
                 lines.Add($"{i + 1,4}  {a.Code,-8}  {b.Code,-9}  {Math.Abs(a.AngleDegrees(550, g.BitNm) - b.AngleDegrees(550, g.BitNm)):0.0} deg");
             }
         }
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private string DescribePatches(DvdGeometry g)
+    {
+        double target = TargetSeparation(DistanceCm);
+        string A(Grating gr) => string.Join(" / ", new[] { 450.0, 550, 650 }.Select(w => gr.AngleDegrees(w, g.BitNm)).Select(a => double.IsNaN(a) ? "--" : $"{a:0.0}"));
+        var lines = new List<string>
+        {
+            "HOLOGRAM TEST PATCHES - KEY",
+            $"Disc layout preset: {g.Name} ({g.Id}), {g.Sectors:N0} sectors",
+            "",
+            $"Left eye pattern  {PairLeft.Code,-4} angles {A(PairLeft)} deg (blue/green/red)",
+            $"Right eye pattern {PairRight.Code,-4} angles {A(PairRight)} deg",
+            $"Fixed off pattern {_offGrating.Code,-4} angles {A(_offGrating)} deg",
+            $"Your eyes are ~{target:0.0} deg apart at {DistanceCm:0} cm. Cells: {_cell:0.###} mm checkerboard.",
+            "",
+            "EIGHT 8 mm PATCHES AT 12 O'CLOCK (numbered on the disc)",
+            "Outer row, off cells = random mix (what the app uses now):",
+            "  1 all off     2 left only     3 right only     4 both on",
+            "Inner row, off cells = the fixed off pattern above:",
+            "  5 all off     6 left only     7 right only     8 both on",
+            "",
+            "HOW TO TEST (from Ashley-QwQ's suggestion)",
+            "1. Fix the disc upright (patches at the top) and the lamp in place; don't move either.",
+            "   A single-colour light (a red or green LED) gives the cleanest result.",
+            "2. Put the camera (or your eye) where your LEFT eye would be. Photograph all eight patches.",
+            "3. Move it sideways by your eye spacing (~6.5 cm) to the RIGHT eye position. Same exposure",
+            "   (lock it), photograph again.",
+            "4. What a working setup looks like:",
+            "   - Left position:  2 and 4 bright, 3 about as dark as 1.",
+            "   - Right position: 3 and 4 bright, 2 about as dark as 1.",
+            "   - Compare rows: if 5-8 show a bigger difference between 'on' and 'off' than 1-4, the fixed",
+            "     off pattern gives better contrast; try 'Off areas: fixed' for your holograms.",
+            "5. Please share the two photos and this key on the HoloStudio3D or disc-probe GitHub page.",
+        };
+        if (_tiles.Count > 0)
+            lines.AddRange(["", "The L/R test tiles at 6 o'clock are on this disc too (see the hologram key for how to read them)."]);
         return string.Join(Environment.NewLine, lines);
     }
 
@@ -571,6 +689,37 @@ internal sealed class StereoPairLayout : IDiffractionLayout
     /// Floyd–Steinberg error diffusion in serpentine order: grays become an even, fine-grained
     /// spread of cells instead of noise. A hard cut-off is used when dithering is off.
     /// </summary>
+    /// <summary>
+    /// Dithers one view using only the cells that belong to it, so each view keeps its own gray
+    /// level. (Dithering the whole grid first and then picking a view's cells lets the dot pattern
+    /// line up with the interleave: a 50% gray could come out fully on for one eye and off for the
+    /// other.) A view's cells in row y are the columns x with (x + stride * y) mod n == view; they
+    /// are gathered into a compact grid, dithered there with Floyd-Steinberg, and put back.
+    /// </summary>
+    internal static bool[] DitherView(double[] value, int width, int n, int stride, int view, bool dither, double threshold)
+    {
+        int height = value.Length / width;
+        int compact = (width + n - 1) / n;
+        double[] packed = new double[compact * height];
+        int[] column = new int[compact * height];
+        for (int y = 0; y < height; y++)
+        {
+            int offset = ((view - stride * y) % n + n) % n;
+            for (int k = 0; k < compact; k++)
+            {
+                int x = offset + k * n;
+                int j = y * compact + k;
+                if (x < width) { packed[j] = value[y * width + x]; column[j] = x; }
+                else { packed[j] = value[y * width + width - 1]; column[j] = -1; } // padding, not written back
+            }
+        }
+        bool[] packedOn = Dither(packed, compact, dither, threshold);
+        bool[] on = new bool[value.Length];
+        for (int j = 0; j < packed.Length; j++)
+            if (column[j] >= 0) on[(j / compact) * width + column[j]] = packedOn[j];
+        return on;
+    }
+
     private static bool[] Dither(double[] value, int width, bool dither, double threshold)
     {
         bool[] on = new bool[value.Length];

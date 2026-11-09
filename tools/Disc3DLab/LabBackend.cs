@@ -76,6 +76,8 @@ namespace Disc3DLab
         public double OffsetYMm;        // move the picture up (+, toward the rim at 12 o'clock) or down (-), mm
         public int Copies = 1;          // copies around the disc (1-8), each turned to face out from the centre
         public bool UprightBottom;      // 2 copies: the bottom copy stays upright, so both show at once
+        public string OffMode = "mix";  // "off" cells: "mix" (random mix) or "fixed" (one pattern aimed away from the eyes)
+        public bool TestPatches;        // make the test-patch disc (all off / left / right / both) instead of a picture
         public double CellMm = 0.05;    // dither cell size: 0.05 fine, 0.1 normal, 0.2 coarse
         public bool Dither = true;
         public double Threshold = 0.5;
