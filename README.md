@@ -6,6 +6,11 @@ By [Drew Medina](https://drewmedina.com).
 **[Download the latest release](../../releases/latest)** (Windows 10/11, 64-bit): extract the zip,
 open `HoloStudio3D-App` and run `HoloStudio3D.exe`.
 
+<p align="center">
+  <img src="docs/images/holostudio3d-disc.jpg" width="520" alt="A burned DVD showing colourful flower images on its data side">
+  <br><em>A burned disc under a single light.</em>
+</p>
+
 > This repository also contains **Disc Image Studio (English Edition)**, the disc-imaging app
 > HoloStudio3D is built on, originally by [JiaFeiMiao-K-Cat](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio).
 > Its own readme is [README-DiscImageStudio.md](README-DiscImageStudio.md).
