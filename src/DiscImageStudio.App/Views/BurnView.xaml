@@ -1,0 +1,121 @@
+<UserControl x:Class="DiscImageStudio.Views.BurnView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="clr-namespace:DiscImageStudio.Localization"
+             xmlns:controls="clr-namespace:DiscImageStudio.Controls"
+             xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+             xmlns:vm="clr-namespace:DiscImageStudio.ViewModels">
+    <!-- Binds the burn view model directly (State and NavigateCommand are exposed on it),
+         like every other workspace page. -->
+    <ScrollViewer controls:ScrollMaskBehavior.Enabled="True">
+        <StackPanel Margin="{StaticResource PagePadding}">
+            <controls:PageHeader Title="{Binding PageTitle}" Badge="{Binding FamilyLabel}"
+                                 Workspace="{Binding PageWorkspace}"
+                                 ShowStages="{Binding DataContext.IsProjectMode, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=False}"
+                                 Hint="{loc:Text Xaml.StreamDataDirectlyToABlankDiscWithoutFirst}">
+                <controls:PageHeader.Actions>
+                    <controls:VisibilityGate IsOpen="{Binding UseCalibrationPattern}">
+                        <Button Style="{StaticResource CompactButton}" Content="{loc:Text Standalone.ReturnToCalibration}" IsEnabled="{Binding IsSetupEnabled}"
+                                Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:Workspace.Calibration}" />
+                    </controls:VisibilityGate>
+                </controls:PageHeader.Actions>
+            </controls:PageHeader>
+
+            <!-- Each entry point fixes the material sent to the recorder. -->
+            <controls:SectionCard Header="{loc:Text Xaml.ContentToWrite}" IconKind="Flame" Margin="0,0,0,24">
+                <StackPanel>
+                    <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource DividerBrush}"
+                            BorderThickness="1" CornerRadius="{StaticResource RadiusPanel}" Padding="14">
+                        <StackPanel>
+                            <TextBlock Text="{Binding SourceTitle}" Style="{StaticResource PanelTitle}" />
+                            <TextBlock Text="{Binding SourceDetails}" Style="{StaticResource HintText}"
+                                       Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </controls:SectionCard>
+
+            <controls:SectionCard Header="{loc:Text Xaml.RecorderAndSpeed}" IconKind="Info" Margin="0,0,0,24"
+                                  IsEnabled="{Binding IsSetupEnabled}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="{loc:Text Xaml.Recorder}" />
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox ItemsSource="{Binding Devices}"
+                                  SelectedItem="{Binding SelectedDevice}"
+                                  DisplayMemberPath="DisplayName" />
+                        <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"
+                                Command="{Binding RefreshDevicesCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <iconPacks:PackIconLucide Kind="RotateCw" Width="14" Height="14"
+                                                          VerticalAlignment="Center" />
+                                <TextBlock Text="{loc:Text Xaml.Refresh}" Margin="7,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <TextBlock Text="{Binding DeviceStatusText}" Style="{StaticResource HintText}" />
+                    <TextBlock Style="{StaticResource FieldLabel}" Text="{loc:Text Xaml.WriteSpeed}" Margin="0,16,0,6" />
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox ItemsSource="{Binding Speeds}"
+                                  SelectedItem="{Binding SelectedSpeed}"
+                                  DisplayMemberPath="DisplayName"
+                                  IsEnabled="{Binding IsSpeedComboEnabled}" />
+                        <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"
+                                IsEnabled="{Binding IsSpeedRefreshEnabled}"
+                                Command="{Binding RefreshSpeedsCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <iconPacks:PackIconLucide Kind="Disc" Width="14" Height="14"
+                                                          VerticalAlignment="Center" />
+                                <TextBlock Text="{loc:Text Xaml.ReadDisc}" Margin="7,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <TextBlock Text="{Binding SpeedStatusText}" Style="{StaticResource HintText}" />
+                </StackPanel>
+            </controls:SectionCard>
+
+            <!-- Danger zone: the warning, its acknowledgement and the single action that
+                 starts the write belong to one card. Progress is reported by the job dock. -->
+            <Border Style="{StaticResource DangerCard}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <iconPacks:PackIconLucide Kind="TriangleAlert" Width="24" Height="24"
+                                                  Foreground="{DynamicResource WarningBrush}" />
+                        <TextBlock Text="{loc:Text Xaml.BeforeBurning}" Style="{StaticResource CardTitle}" Margin="10,0,0,0"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource BodyText}" Foreground="{DynamicResource WarningTextBrush}"
+                               Text="{loc:Text Xaml.StreamingRequiresBlankMediaInterruptionsPowerLossOrInsufficient}" />
+                    <CheckBox Content="{loc:Text Xaml.IHaveInsertedTheCorrectBlankDisc}"
+                              IsChecked="{Binding ConfirmChecked}" Margin="0,14,0,0"
+                              IsEnabled="{Binding IsSetupEnabled}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                        <Button Style="{StaticResource DangerButton}" Content="{loc:Text Xaml.StartStreamingBurn}"
+                                Command="{Binding StartBurnCommand}" Margin="0,0,10,0" />
+                        <Button Style="{StaticResource SecondaryButton}" Content="{loc:Text Xaml.CancelBurn}"
+                                Command="{Binding CancelBurnCommand}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding BurnStatusText}" Style="{StaticResource CompactHint}"
+                               Margin="0,12,0,0" />
+                    <controls:VisibilityGate IsOpen="{Binding HasCalibrationBurnLog}">
+                        <StackPanel Margin="0,8,0,0">
+                            <ProgressBar Style="{StaticResource CompactProgressBar}" Minimum="0" Maximum="100"
+                                         Value="{Binding BurnProgressValue, Mode=OneWay}" />
+                            <Expander Header="{loc:Text Standalone.RecordingLog}" Margin="0,8,0,0">
+                                <TextBox Text="{Binding CalibrationBurnLog, Mode=OneWay}" IsReadOnly="True"
+                                         TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="160" />
+                            </Expander>
+                        </StackPanel>
+                    </controls:VisibilityGate>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

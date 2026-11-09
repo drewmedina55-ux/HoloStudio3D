@@ -1,0 +1,61 @@
+<UserControl x:Class="DiscImageStudio.Controls.StageBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- The workflow rail under the page header, in the same two groups the sidebar shows:
+         disc-making (design → export → burn), then calibration (preview → calibration).
+         No stage carries a number — the dot marks the current stage, every stage is
+         clickable, and the divider separates the groups. -->
+    <ItemsControl x:Name="StageList">
+        <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+            <DataTemplate>
+                <StackPanel Orientation="Horizontal">
+                    <!-- The group divider separates the calibration pair from disc-making. -->
+                    <Rectangle Width="1" Height="14" Fill="{DynamicResource DividerBrush}"
+                               Margin="12,0,6,0" VerticalAlignment="Center"
+                               Visibility="{Binding GroupDividerVisibility}" />
+                    <Button Click="Stage_Click" Focusable="False" Cursor="Hand"
+                            AutomationProperties.Name="{Binding Label}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Hot" Background="Transparent"
+                                        CornerRadius="{StaticResource RadiusChip}" Padding="8,4">
+                                    <ContentPresenter />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Hot" Property="Background" Value="{DynamicResource HoverOverlayBrush}" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="Hot" Property="Background" Value="{DynamicResource PressedOverlayBrush}" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="Dot" Width="6" Height="6" VerticalAlignment="Center"
+                                     Fill="{DynamicResource TextMutedBrush}" />
+                            <TextBlock x:Name="StageLabel" Text="{Binding Label}" Style="{StaticResource InlineText}"
+                                       Margin="7,0,2,0"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextMutedBrush}" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                <DataTemplate.Triggers>
+                    <!-- The rail marks where you are, not what is finished: the current stage
+                         takes the accent dot and the readable label. -->
+                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                        <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource PrimaryBrush}" />
+                        <Setter TargetName="StageLabel" Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                        <Setter TargetName="StageLabel" Property="FontWeight" Value="Medium" />
+                    </DataTrigger>
+                </DataTemplate.Triggers>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+</UserControl>

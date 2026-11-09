@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Presets\built-in-disc-presets.json"
+                      LogicalName="DiscImageStudio.Core.BuiltInDiscPresets.json" />
+    <EmbeddedResource Include="Calibration\Patterns\target_slim.png"
+                      LogicalName="DiscImageStudio.Core.Calibration.target_slim.png" />
+    <EmbeddedResource Include="Calibration\Patterns\target_slim.gray.gz"
+                      LogicalName="DiscImageStudio.Core.Calibration.target_slim.gray.gz" />
+  </ItemGroup>
+</Project>

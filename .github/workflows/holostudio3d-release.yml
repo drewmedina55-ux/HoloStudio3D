@@ -1,0 +1,61 @@
+# Builds HoloStudio3D (and Disc Image Studio, English Edition) on a Windows machine at GitHub
+# and attaches the ready-to-run zip to a Release.
+#
+# Runs when a version tag such as v1 or v1.1 is pushed, or by hand from the Actions tab
+# (Run workflow), which builds the zip without making a Release.
+
+name: Build HoloStudio3D
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build
+        shell: pwsh
+        run: ./Build-English.ps1
+
+      - name: Zip the app folder
+        id: zip
+        shell: pwsh
+        run: |
+          $name = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { 'dev' }
+          $zip = "HoloStudio3D-$name-Windows.zip"
+          if (-not (Test-Path 'HoloStudio3D-App/HoloStudio3D.exe')) { throw 'HoloStudio3D.exe was not built.' }
+          if (-not (Test-Path 'HoloStudio3D-App/disc-probe/python/python.exe')) { throw "Stage 1's Python was not set up." }
+          Compress-Archive -Path 'HoloStudio3D-App' -DestinationPath $zip
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+
+      - name: Keep the zip with this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.zip.outputs.zip }}
+          path: ${{ steps.zip.outputs.zip }}
+
+      - name: Attach it to the Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: HoloStudio3D ${{ github.ref_name }}
+          files: ${{ steps.zip.outputs.zip }}
+          body: |
+            **Download `${{ steps.zip.outputs.zip }}`**, extract it, open the `HoloStudio3D-App` folder and run `HoloStudio3D.exe` (Windows 10/11, 64-bit). Nothing else to install.
+
+            If Windows shows "Windows protected your PC", click *More info*, then *Run anyway* (the app isn't code-signed).
+
+            Start with *Stage 1 · Measure discs* for your stack of discs, then make a hologram. Full instructions are on the app's Info page and in the README.
+
+            Hologram mode and the rainbow and tilt discs are experimental. Free software under the GPL-3.0-or-later; the source code is in this repository and in the *Source code* downloads below.

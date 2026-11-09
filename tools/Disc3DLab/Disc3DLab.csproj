@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <ApplicationIcon>disc3dlab.ico</ApplicationIcon>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>HoloStudio3D</AssemblyName>
+    <RootNamespace>Disc3DLab</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Custom controls are built in code, never in the designer. -->
+    <NoWarn>$(NoWarn);WFO1000</NoWarn>
+    <Product>HoloStudio3D</Product>
+    <Authors>Drew Medina</Authors>
+    <Description>Hidden-3D stereograms and diffraction (tilt) images for Disc Image Studio.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/DiscImageStudio.Core/DiscImageStudio.Core.csproj" />
+    <ProjectReference Include="../../src/DiscImageStudio.ImageIO/DiscImageStudio.ImageIO.csproj" />
+    <ProjectReference Include="../../src/DiscImageStudio.Dvd/DiscImageStudio.Dvd.csproj" />
+  </ItemGroup>
+</Project>
