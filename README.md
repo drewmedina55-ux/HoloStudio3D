@@ -176,157 +176,34 @@ is still done by you, with ImgBurn or Windows. It runs on a private copy of Pyth
 installed on your system. Keep that folder with the EXE. Its results are kept in
 `%LOCALAPPDATA%\Disc3DLab\disc-probe`.
 
-## 1. Hidden-3D picture
+## Types of discs
 
-**Sources:** a built-in shape (torus, rings, spheres, ripple, star), a depth-map picture
-(white = near), or a 3D model (`.obj` / `.stl`, e.g. exported from Hi3D Studio or IdolMesh).
+### 1. Hologram disc (DVD, experimental)
 
-```
-HoloStudio3D stereogram --demo torus --out torus.png
-HoloStudio3D stereogram --mesh model.obj --yaw 30 --out model.png
-HoloStudio3D stereogram --depth depth.png --dot 0.25 --out cd-version.png
-```
+The main feature. A 3D picture that sits at the top of the disc: each of your eyes sees a slightly
+different view, so it shows depth, and with more views it turns as you move your head, like a
+lenticular print.
 
-**Burn it:** open the PNG in Disc Image Studio, fill the 120 mm disc with it, and use 2 tone
-levels so every dot stays black or white.
+- **Make it from** a picture and its depth map, a 3D model (.obj or .stl), several pictures
+  (lenticular frames), or a side-by-side 3D image.
+- **Choose** 2 to 7 views, the picture's size and position, and optional copies around the disc
+  so one is always at the top.
+- **View it** with the picture at the top and one small light off to the side.
+- **Not sure it's working?** The test-patch disc shows whether each eye really gets its own view.
 
-**See it:** hold the disc 30–40 cm away and look *through* it, as if at something far behind it.
-The two guide dots at the top turn into three, and the shape floats in depth. The centre hole
-leaves a gap in the image, so the built-in shapes are designed to sit in the readable ring.
+### 2. Hidden-3D picture (CD or DVD)
 
-Tips:
-- `--dot 0.25` or larger for CD-R, which burns softer than DVD.
-- `--separation 12` makes it easier to lock onto; `16` gives more depth.
-- `-depth.png` is saved next to the output so you can check the shape.
+A "Magic Eye" style picture: a field of random dots with a hidden 3D shape. Look *through* the
+disc, as if at something far behind it, and the shape floats out. Make it from a built-in shape, a
+depth map or a 3D model, then burn the picture with Disc Image Studio.
 
-I checked the generator by decoding its output back into depth with a computer, and the shapes
-come back correctly. Whether it reads well *on a disc* depends on how sharp your burns are.
+### 3. Rainbow test disc (DVD, experimental)
 
----
+Rings of the data patterns HoloStudio3D uses, each next to a plain reference, so you can see which
+ones glow in colour on your drive and discs. Useful for checking a new stack of discs.
 
-## 2. Diffraction discs (experimental)
-
-### The idea
-
-On a DVD, each data byte becomes a 16-bit pattern of marks along the track. A long run of the
-same byte repeats that pattern, which makes it a diffraction grating along the track. I worked
-out the repeating pattern for every byte from the DVD standard's modulation tables (ECMA-267
-EFMPlus). Some bytes give one strong, clean period:
-
-| Byte | Period | Throws green light at about |
-|---|---|---|
-| A5 | 0.85 µm | 40° |
-| 66 | 1.07 µm | 31° |
-| B9 | 1.42 µm | 23° |
-| 92 | 2.13 µm | 15° |
-
-These are the same four bytes Disc Image Studio uses as its DVD gray levels. Alternating two
-bytes gives longer periods and smaller angles (7°, 4°, 2°).
-
-**Not proven yet.** The bytes the Lab writes are checked exactly. What hasn't been tested is how
-strongly a real burner and dye turn them into visible colour. That's what the test disc is for.
-
-### Step 1: test disc
-
-```
-HoloStudio3D diffraction-test --out diffraction-test.iso
-```
-
-This writes a full 4.7 GB DVD image with 12 rings of textures, plus a key (`-key.txt`) and a
-false-colour layout map (`-map.png`). Each ring alternates every 45° between the test texture and
-a random "no grating" reference.
-
-**Burn it as a disc image:** right-click the .iso > *Burn disc image*, or use ImgBurn > *Write
-image file to disc*. It has no file system on purpose, so Explorer won't open it.
-
-**Look at it:** use one small bright light in a dark room. Turn the disc so a test segment is at
-12 or 6 o'clock, start at the mirror reflection, and tilt slowly left and right. A working ring
-shows a clean colour band, at roughly the angle in the key, that the random segments next to it
-don't. The big rainbow running out from the centre is the normal DVD track rainbow, so ignore it.
-
-### Step 2: Hologram mode (3D, 2-7 views)
-
-Hologram mode used to be called *Stereo pair*. The command is now `hologram` (`stereo-pair`
-still works).
-
-```
-HoloStudio3D hologram --image picture.png --depthmap depth.png --views 5 --strength 3 --out holo.iso
-HoloStudio3D hologram --model statue.obj --views 4 --turn 6 --yaw 20 --out holo.iso
-HoloStudio3D hologram --frames f1.png,f2.png,f3.png,f4.png --out holo.iso
-HoloStudio3D hologram --sbs my-3d-sbs.png --distance 40 --large --width 110 --out holo.iso
-HoloStudio3D hologram --left l.png --right r.png --pair B9,92 --out holo.iso
-```
-
-Each data pattern sends its light out at its own angle. The Lab draws each view with its own
-pattern and interleaves them in a fine grid (0.05 mm cells by default) at 12 o'clock, where the
-tracks run left-right. Your eyes see the disc from angles a few degrees apart (about 9° at
-40 cm), so each eye catches a different view, the way your 3D display or a lenticular aims each
-image at one eye.
-
-- **Views (2-7):** 2 is a classic stereo pair, one view per eye, and the brightest. With more
-  views the Lab picks evenly spaced patterns (there are 7 clean ones), so moving your head left and
-  right brings in the neighbouring views and the picture turns, like a lenticular. Each view gets
-  1/N of the dots, though, so more views means a dimmer picture. All the views are saved next to
-  the .iso as `-views.png` (left-most first) so you can check them.
-- **Picture + depth map** (the same pair you'd use for a lenticular): the Lab builds every view
-  itself by shifting each pixel by its depth. *3D strength* sets the shift between your two eyes
-  (% of picture width); *pop-out point* sets which depth sits on the disc surface, so nearer parts
-  float in front and farther parts sink behind. White = near (tick the box if yours is black =
-  near).
-- **3D model** (.obj or .stl): the Lab renders a lit gray picture of the model from each view's
-  angle, on black. *Turn* and *Tilt* set the starting angle, *Size* zooms, and *3D strength* is
-  how many degrees the model turns between your two eyes (default 6°). Export GLB/PLY models to
-  OBJ first.
-- **Several pictures:** drop 2-7 pictures at once (lenticular frames). Each is one view, ordered
-  left to right by file name, so name them frame1, frame2, ...
-- **Side-by-side picture** (Convert3D output works), or separate left and right pictures (2 views).
-  Tick *squeezed* for half-width side-by-side and *cross-eyed* if the right view is on the left.
-- **Test tiles:** five tiles at 6 o'clock, printed upside down so they read upright when you
-  turn the disc. Each holds an **L** for the left eye and an **R** for the right, in the same spot,
-  using a different pattern pair. Close one eye at a time: the tile where each eye sees only its own
-  letter is the pair that works on your discs. With 2 views, choose it under *Pattern pair* and burn again.
-- **Picture size:** *Fit in top band* keeps the whole picture in the band at 12 o'clock
-  (up to 80 mm wide, 30 mm tall), where the 3D works best. *Large (edges clip)* (`--large`) makes
-  it up to 116 mm wide, centred on that band. The hub, the hole and the rim cut it off, and the
-  3D gets weaker toward 3 and 9 o'clock, where the tracks curve away.
-- **Position on disc:** *Move left / right* (up to 40 mm) and *Move up / down* (up to 30 mm;
-  up is toward the rim) slide the picture around, or `--move-x MM` / `--move-y MM` on the
-  command line. *Centre it* puts it back. The 3D is strongest straight up at 12 o'clock and fades
-  toward the sides, where the tracks curve; anything past the rim or over the hole is cut off.
-- **Copies around the disc (1, 2, 3, 4, 6 or 8):** fills the empty part of the disc. The disc is
-  cut into equal slices and each slice gets a copy turned to face out from the centre, so whichever
-  copy you turn to 12 o'clock is upright, with its tracks running left-right, and shows the 3D.
-  Each slice is about 82 / 71 / 58 / 41 / 31 mm wide (for 2 / 3 / 4 / 6 / 8 copies) at the middle
-  of the band; a wider picture is cut at its slice edges. Copies can't all show at once: away from
-  12 and 6 o'clock the tracks run the wrong way for your eyes. With 2 copies, *Keep the bottom copy
-  upright* (experimental) leaves the 6 o'clock copy unturned, since the tracks there also run
-  left-right, so both may show at the same time. The L/R test tiles are drawn on top of the bottom
-  copy; untick them for a clean disc. Command line: `--copies N`, `--upright-bottom`.
-- **Dither detail:** *Fine* (0.05 mm cells, the default), *Normal* (0.1 mm) or *Coarse* (0.2 mm),
-  or `--detail MM`. Grays are spread with error diffusion, separately for each view's own cells, so
-  every view keeps the same gray level (before v1.02 a mid-gray could come out much brighter for
-  one eye than the other). If a Fine burn looks faint or washed out, try Normal.
-- **Off areas:** what fills the dark parts of the picture. *Random mix* is the original texture,
-  but it contains the view patterns too, so it isn't fully dark for your eyes. *Fixed, aimed away*
-  (`--off-fixed`, experimental) fills them with one pattern (92, about 15°) that sends its light
-  away from both eyes, for possibly better contrast.
-- **Test-patch disc** (`--test-patches`): eight matched 8 mm patches at 12 o'clock (all off, left
-  only, right only, both on, once with each kind of off area), plus the L/R tiles. Fix the disc
-  and lamp, photograph from where each eye would be with the same exposure, and compare: it shows
-  directly whether each eye gets its own view and which off area gives better contrast. The key
-  file explains what to look for. Suggested by Ashley-QwQ, disc-probe's author.
-- **Viewing:** picture at the top, about your chosen distance away, with one small light off to
-  the side (not between your eyes). With more than 2 views, move your head slowly left and right.
-  If the depth looks inside-out, tick *Swap eyes*.
-
-This is experimental: the bytes are verified exactly, but it's untested on a real burn.
-
-### Disc layout presets
-
-`--preset` picks the DVD layout from the app's presets (`HoloStudio3D presets` lists them). Pick
-your disc brand if it's listed; otherwise use `dvd-5-120mm`. The preset only affects where
-shapes land on the disc, not the grating angles.
-
+Full settings, command-line options and the science behind each disc are in
+[HOLOSTUDIO3D.md](HOLOSTUDIO3D.md).
 
 ## Help evolve it
 

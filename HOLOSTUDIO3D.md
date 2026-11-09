@@ -152,78 +152,15 @@ is still done by you, with ImgBurn or Windows. It runs on a private copy of Pyth
 installed on your system. Keep that folder with the EXE. Its results are kept in
 `%LOCALAPPDATA%\Disc3DLab\disc-probe`.
 
-## 1. Hidden-3D picture
+## Types of discs
 
-**Sources:** a built-in shape (torus, rings, spheres, ripple, star), a depth-map picture
-(white = near), or a 3D model (`.obj` / `.stl`, e.g. exported from Hi3D Studio or IdolMesh).
+HoloStudio3D makes three kinds of disc. The hologram disc is the main one; the other two are
+handy for testing and for fun.
 
-```
-HoloStudio3D stereogram --demo torus --out torus.png
-HoloStudio3D stereogram --mesh model.obj --yaw 30 --out model.png
-HoloStudio3D stereogram --depth depth.png --dot 0.25 --out cd-version.png
-```
+### 1. Hologram disc (DVD, experimental)
 
-**Burn it:** open the PNG in Disc Image Studio, fill the 120 mm disc with it, and use 2 tone
-levels so every dot stays black or white.
-
-**See it:** hold the disc 30–40 cm away and look *through* it, as if at something far behind it.
-The two guide dots at the top turn into three, and the shape floats in depth. The centre hole
-leaves a gap in the image, so the built-in shapes are designed to sit in the readable ring.
-
-Tips:
-- `--dot 0.25` or larger for CD-R, which burns softer than DVD.
-- `--separation 12` makes it easier to lock onto; `16` gives more depth.
-- `-depth.png` is saved next to the output so you can check the shape.
-
-I checked the generator by decoding its output back into depth with a computer, and the shapes
-come back correctly. Whether it reads well *on a disc* depends on how sharp your burns are.
-
----
-
-## 2. Diffraction discs (experimental)
-
-### The idea
-
-On a DVD, each data byte becomes a 16-bit pattern of marks along the track. A long run of the
-same byte repeats that pattern, which makes it a diffraction grating along the track. I worked
-out the repeating pattern for every byte from the DVD standard's modulation tables (ECMA-267
-EFMPlus). Some bytes give one strong, clean period:
-
-| Byte | Period | Throws green light at about |
-|---|---|---|
-| A5 | 0.85 µm | 40° |
-| 66 | 1.07 µm | 31° |
-| B9 | 1.42 µm | 23° |
-| 92 | 2.13 µm | 15° |
-
-These are the same four bytes Disc Image Studio uses as its DVD gray levels. Alternating two
-bytes gives longer periods and smaller angles (7°, 4°, 2°).
-
-**Not proven yet.** The bytes the Lab writes are checked exactly. What hasn't been tested is how
-strongly a real burner and dye turn them into visible colour. That's what the test disc is for.
-
-### Step 1: test disc
-
-```
-HoloStudio3D diffraction-test --out diffraction-test.iso
-```
-
-This writes a full 4.7 GB DVD image with 12 rings of textures, plus a key (`-key.txt`) and a
-false-colour layout map (`-map.png`). Each ring alternates every 45° between the test texture and
-a random "no grating" reference.
-
-**Burn it as a disc image:** right-click the .iso > *Burn disc image*, or use ImgBurn > *Write
-image file to disc*. It has no file system on purpose, so Explorer won't open it.
-
-**Look at it:** use one small bright light in a dark room. Turn the disc so a test segment is at
-12 or 6 o'clock, start at the mirror reflection, and tilt slowly left and right. A working ring
-shows a clean colour band, at roughly the angle in the key, that the random segments next to it
-don't. The big rainbow running out from the centre is the normal DVD track rainbow, so ignore it.
-
-### Step 2: Hologram mode (3D, 2-7 views)
-
-Hologram mode used to be called *Stereo pair*. The command is now `hologram` (`stereo-pair`
-still works).
+A 3D picture made from 2 to 7 views of your picture, depth map or 3D model, so each eye sees a
+different view. In the app this is **Hologram mode**; on the command line it's `hologram`.
 
 ```
 HoloStudio3D hologram --image picture.png --depthmap depth.png --views 5 --strength 3 --out holo.iso
@@ -295,10 +232,81 @@ image at one eye.
   the side (not between your eyes). With more than 2 views, move your head slowly left and right.
   If the depth looks inside-out, tick *Swap eyes*.
 
-This is experimental: the bytes are verified exactly, but it's untested on a real burn.
+This is experimental: the bytes are verified exactly, but how well the depth shows depends on
+your drive, discs and light. The test-patch disc is the quickest way to check yours.
 
-### Disc layout presets
+### 2. Hidden-3D picture (CD or DVD)
+
+**Sources:** a built-in shape (torus, rings, spheres, ripple, star), a depth-map picture
+(white = near), or a 3D model (`.obj` / `.stl`, e.g. exported from Hi3D Studio or IdolMesh).
+
+```
+HoloStudio3D stereogram --demo torus --out torus.png
+HoloStudio3D stereogram --mesh model.obj --yaw 30 --out model.png
+HoloStudio3D stereogram --depth depth.png --dot 0.25 --out cd-version.png
+```
+
+**Burn it:** open the PNG in Disc Image Studio, fill the 120 mm disc with it, and use 2 tone
+levels so every dot stays black or white.
+
+**See it:** hold the disc 30–40 cm away and look *through* it, as if at something far behind it.
+The two guide dots at the top turn into three, and the shape floats in depth. The centre hole
+leaves a gap in the image, so the built-in shapes are designed to sit in the readable ring.
+
+Tips:
+- `--dot 0.25` or larger for CD-R, which burns softer than DVD.
+- `--separation 12` makes it easier to lock onto; `16` gives more depth.
+- `-depth.png` is saved next to the output so you can check the shape.
+
+I checked the generator by decoding its output back into depth with a computer, and the shapes
+come back correctly. Whether it reads well *on a disc* depends on how sharp your burns are.
+
+### 3. Diffraction discs (DVD, experimental)
+
+The data patterns behind the hologram disc, on their own: a rainbow test disc that shows which
+patterns glow on your discs.
+
+#### The idea
+
+On a DVD, each data byte becomes a 16-bit pattern of marks along the track. A long run of the
+same byte repeats that pattern, which makes it a diffraction grating along the track. I worked
+out the repeating pattern for every byte from the DVD standard's modulation tables (ECMA-267
+EFMPlus). Some bytes give one strong, clean period:
+
+| Byte | Period | Throws green light at about |
+|---|---|---|
+| A5 | 0.85 µm | 40° |
+| 66 | 1.07 µm | 31° |
+| B9 | 1.42 µm | 23° |
+| 92 | 2.13 µm | 15° |
+
+These are the same four bytes Disc Image Studio uses as its DVD gray levels. Alternating two
+bytes gives longer periods and smaller angles (7°, 4°, 2°).
+
+**Not proven yet.** The bytes the Lab writes are checked exactly. What hasn't been tested is how
+strongly a real burner and dye turn them into visible colour. That's what the test disc is for.
+
+#### Rainbow test disc
+
+```
+HoloStudio3D diffraction-test --out diffraction-test.iso
+```
+
+This writes a full 4.7 GB DVD image with 12 rings of textures, plus a key (`-key.txt`) and a
+false-colour layout map (`-map.png`). Each ring alternates every 45° between the test texture and
+a random "no grating" reference.
+
+**Burn it as a disc image:** right-click the .iso > *Burn disc image*, or use ImgBurn > *Write
+image file to disc*. It has no file system on purpose, so Explorer won't open it.
+
+**Look at it:** use one small bright light in a dark room. Turn the disc so a test segment is at
+12 or 6 o'clock, start at the mirror reflection, and tilt slowly left and right. A working ring
+shows a clean colour band, at roughly the angle in the key, that the random segments next to it
+don't. The big rainbow running out from the centre is the normal DVD track rainbow, so ignore it.
+
+### Disc layout presets (command line)
 
 `--preset` picks the DVD layout from the app's presets (`HoloStudio3D presets` lists them). Pick
 your disc brand if it's listed; otherwise use `dvd-5-120mm`. The preset only affects where
 shapes land on the disc, not the grating angles.
+
