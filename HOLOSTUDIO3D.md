@@ -132,7 +132,9 @@ drive reads a burned disc to measure the spiral exactly, with no photos and no c
 3. **Check drive** (1–3 min). You want `CAV` and low jitter. If disc-probe suggests another speed,
    it appears as a button under *Suggested next steps*.
 4. **Measure geometry** (about 5 min). The verdict appears at the top. If it suggests a correction
-   or another speed, click the suggested step.
+   or another speed, click the suggested step. When a suggested command uses `--correction
+   correction.json` and that file isn't there yet, HoloStudio3D writes it from your measurement
+   first, then runs the command.
 5. **Install as a preset:** put a *blank* disc from the same spindle in, click **Read blank disc**
    to get its sector count, name the preset, then **Install preset into Disc Image Studio**. It's
    written to Disc Image Studio's preset list (backed up first). Restart Disc Image Studio and pick

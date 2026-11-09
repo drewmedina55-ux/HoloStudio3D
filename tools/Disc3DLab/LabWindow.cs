@@ -1175,12 +1175,15 @@ namespace Disc3DLab
 
         private void RunCustom()
         {
-            string text = _mCommand.Text.Trim();
-            if (text.StartsWith("python -m discprobe", StringComparison.OrdinalIgnoreCase)) text = text.Substring("python -m discprobe".Length).Trim();
-            else if (text.StartsWith("discprobe ", StringComparison.OrdinalIgnoreCase)) text = text.Substring("discprobe ".Length).Trim();
+            string text = _mCommand.Text.Trim().TrimStart('▶').Trim();
+            // Accept the command however it was copied: from disc-probe's advice, its README or this log.
+            foreach (string prefix in new[] { "python -m discprobe", "python3 -m discprobe", "disc-probe ", "discprobe " })
+                if (text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) { text = text.Substring(prefix.Length).Trim(); break; }
+            if (text.StartsWith("python ", StringComparison.OrdinalIgnoreCase) || text.StartsWith("python3 ", StringComparison.OrdinalIgnoreCase))
+                text = text.Substring(text.IndexOf(' ') + 1).Trim();
             List<string> args = SplitCommand(text);
             if (args.Count == 0) { Error(new ArgumentException("Type a disc-probe command first, e.g. geo -h")); return; }
-            if (args[0] == "tools/geo_polyfit.py" || args[0] == "geo_polyfit.py") args = new[] { "tool", "geo_polyfit.py" }.Concat(args.Skip(1)).ToList();
+            if (args[0].Replace('\\', '/').EndsWith("geo_polyfit.py", StringComparison.OrdinalIgnoreCase)) args = new[] { "tool", "geo_polyfit.py" }.Concat(args.Skip(1)).ToList();
             RunProbeAsync(args, "disc-probe " + args[0]);
         }
 
@@ -1271,7 +1274,68 @@ namespace Disc3DLab
             RunProbeAsync(args, title);
         }
 
-        private async void RunProbeAsync(List<string> args, string title, Action<int> done = null)
+        /// <summary>
+        /// Runs a disc-probe command. If it uses --correction with a file that doesn't exist yet (geo's
+        /// advice is to write it first), writes the correction from the measurement, then runs the command.
+        /// </summary>
+        private void RunProbeAsync(List<string> args, string title, Action<int> done = null)
+        {
+            if (_mTask != null && !_mTask.IsCompleted) return;
+            List<string> fix = CorrectionStep(args, _backend.ProbeWorkFolder);
+            if (fix == null) { RunProbeCore(args, title, done); return; }
+            string file = args[args.IndexOf("--correction") + 1];
+            RunProbeCore(fix, "Writing the correction file first", exit =>
+            {
+                if (exit == 0 && File.Exists(ResolveProbePath(file, _backend.ProbeWorkFolder)))
+                {
+                    AppendLog("Correction file written. Now running the command you asked for.");
+                    RunProbeCore(args, title, done);
+                }
+                else
+                {
+                    _mVerdict.Text = "⚠ Couldn't write " + file + " from your measurement. You can still install the preset without it: run the same command without --correction " + file + ".";
+                    _mVerdict.ForeColor = Theme.Bad;
+                    done?.Invoke(exit == 0 ? 1 : exit);
+                }
+            });
+        }
+
+        private static string ResolveProbePath(string path, string workFolder) =>
+            Path.IsPathRooted(path) ? path : Path.Combine(workFolder ?? "", path);
+
+        /// <summary>
+        /// The geo_polyfit command that writes a missing --correction file, or null if none is needed.
+        /// Uses the --geo result the command names, or for "latest" the newest geo result folder.
+        /// </summary>
+        internal static List<string> CorrectionStep(List<string> args, string workFolder)
+        {
+            if (args.Count == 0 || args[0] == "tool") return null;
+            int at = args.IndexOf("--correction");
+            if (at < 0 || at + 1 >= args.Count) return null;
+            string file = args[at + 1];
+            if (File.Exists(ResolveProbePath(file, workFolder))) return null;
+
+            int g = args.IndexOf("--geo");
+            string geo = g >= 0 && g + 1 < args.Count ? args[g + 1] : "latest";
+            if (string.Equals(geo, "latest", StringComparison.OrdinalIgnoreCase))
+            {
+                string results = Path.Combine(workFolder ?? "", "results");
+                if (!Directory.Exists(results)) return null;
+                // Folder names end in the measurement's date and time (geo-E-20261108-211613).
+                DirectoryInfo newest = new DirectoryInfo(results).GetDirectories("geo-*")
+                    .Where(d => File.Exists(Path.Combine(d.FullName, "summary.json")))
+                    .OrderByDescending(d => d.Name.Length >= 15 ? d.Name.Substring(d.Name.Length - 15) : d.Name, StringComparer.Ordinal)
+                    .ThenByDescending(d => d.LastWriteTimeUtc)
+                    .FirstOrDefault();
+                if (newest == null) return null;
+                geo = Path.Combine("results", newest.Name);
+            }
+            else if (geo.EndsWith("summary.json", StringComparison.OrdinalIgnoreCase))
+                geo = Path.GetDirectoryName(geo);
+            return new List<string> { "tool", "geo_polyfit.py", geo, "--write-correction", file, "--order", "quadratic" };
+        }
+
+        private async void RunProbeCore(List<string> args, string title, Action<int> done = null)
         {
             if (_mTask != null && !_mTask.IsCompleted) return;
             _mCancelSource = new CancellationTokenSource();
@@ -1736,7 +1800,7 @@ namespace Disc3DLab
 
         // ───────────── about page ─────────────
 
-        internal const string AppVersion = "v1";
+        internal const string AppVersion = "v1.01";
         internal const string WebsiteUrl = "https://drewmedina.com";
         internal const string DisRepoUrl = "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio";
         internal const string ProbeRepoUrl = "https://github.com/Ashley-QwQ/disc-probe";
