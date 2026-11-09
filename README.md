@@ -8,7 +8,7 @@ open `HoloStudio3D-App` and run `HoloStudio3D.exe`.
 
 <p align="center">
   <img src="docs/images/holostudio3d-disc.jpg" width="520" alt="A burned DVD showing colourful flower images on its data side">
-  <br><em>A burned disc under a single light.</em>
+  <br><em>A burned Verbatim DVD+R disc under a single light.</em>
 </p>
 
 > This repository also contains **Disc Image Studio (English Edition)**, the disc-imaging app
