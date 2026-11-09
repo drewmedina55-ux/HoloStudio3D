@@ -1,6 +1,6 @@
 # HoloStudio3D
 
-A companion tool for Disc Image Studio (English Edition), by Drew Medina. It burns a 3D
+An experimental companion tool for Disc Image Studio (English Edition), by Drew Medina. It burns a 3D
 **hologram** into the data side of a DVD: a picture that shows depth when you look at the disc
 under a single light, with each eye seeing a slightly different view. You make it from your own
 pictures, a picture plus its depth map, or a 3D model.

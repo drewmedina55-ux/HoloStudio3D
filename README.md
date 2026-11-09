@@ -19,7 +19,7 @@ open `HoloStudio3D-App` and run `HoloStudio3D.exe`.
 > HoloStudio3D is built on, originally by [JiaFeiMiao-K-Cat](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio).
 > Its own readme is [README-DiscImageStudio.md](README-DiscImageStudio.md).
 
-A companion tool for Disc Image Studio (English Edition), by Drew Medina. It burns a 3D
+An experimental companion tool for Disc Image Studio (English Edition), by Drew Medina. It burns a 3D
 **hologram** into the data side of a DVD: a picture that shows depth when you look at the disc
 under a single light, with each eye seeing a slightly different view. You make it from your own
 pictures, a picture plus its depth map, or a 3D model.
@@ -311,3 +311,28 @@ This is experimental: the bytes are verified exactly, but it's untested on a rea
 `--preset` picks the DVD layout from the app's presets (`HoloStudio3D presets` lists them). Pick
 your disc brand if it's listed; otherwise use `dvd-5-120mm`. The preset only affects where
 shapes land on the disc, not the grating angles.
+
+
+## Help evolve it
+
+HoloStudio3D is an experiment, and there's a lot still to learn about how far a home DVD burner
+can be pushed toward real holograms. Help from the community is very welcome:
+
+- **Burn a disc and share what you see.** Photos of hologram, rainbow test and tilt discs, good or
+  bad, with your drive, disc brand and settings, show what works where. Open an
+  [issue](../../issues) with your results.
+- **Report problems.** If something fails, open an issue and paste the log from the app.
+- **Improve it.** Ideas, better patterns, viewing tricks, fixes and pull requests are all welcome.
+
+## Special thanks
+
+HoloStudio3D wouldn't exist without these two projects and their authors:
+
+- **[JiaFeiMiao-K-Cat](https://github.com/JiaFeiMiao-K-Cat)** and the contributors to
+  **[Disc Image Studio](https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio)**, the disc-imaging
+  engine and app this is built on.
+- **[Ashley-QwQ](https://github.com/Ashley-QwQ)**, author of
+  **[disc-probe](https://github.com/Ashley-QwQ/disc-probe)**, which measures your drive and discs
+  in Stage 1 so pictures land where they should.
+
+Thank you both for sharing your work as open source.
