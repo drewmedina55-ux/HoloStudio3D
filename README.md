@@ -30,6 +30,11 @@ Open **Hologram mode** (the top of the sidebar). Choose what to show, set a few 
 *Make hologram disc*. You get an .iso to burn, a key that says how to look at it, and a
 `-views.png` showing every view the app built, so you can check them before burning.
 
+<p align="center">
+  <img src="docs/images/holostudio3d-screenshot.jpg" alt="HoloStudio3D in Hologram mode: a 3D model of a flower repeated six times around the disc, with the settings on the left and the disc layout and key on the right">
+  <br><em>Hologram mode: a 3D model, 2 views, large picture, 6 copies around the disc, with a measured disc preset.</em>
+</p>
+
 **How it works.** The app draws your picture from several viewpoints (the *views*) and weaves them
 together in a fine grid at 12 o'clock. Each view is written with its own data pattern, and each
 pattern throws light off the disc at its own angle. Your eyes are a few degrees apart, so each one
