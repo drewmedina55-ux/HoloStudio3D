@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/holostudio3d-banner.jpg" alt="HoloStudio3D: a glowing 3D torus rising out of a DVD">
+</p>
+
 # HoloStudio3D
 
 **Burn 3D holograms into DVDs** from your own pictures, depth maps and 3D models.
@@ -7,7 +11,7 @@ By [Drew Medina](https://drewmedina.com).
 open `HoloStudio3D-App` and run `HoloStudio3D.exe`.
 
 <p align="center">
-  <img src="docs/images/holostudio3d-disc.jpg" width="520" alt="A burned DVD showing colourful flower images on its data side">
+  <img src="docs/images/holostudio3d-disc.jpg" width="260" alt="A burned DVD showing colourful flower images on its data side">
   <br><em>A burned Verbatim DVD+R disc under a single light.</em>
 </p>
 
