@@ -28,7 +28,11 @@ internal sealed class ModelRender
     /// A size x size picture (values 0..1, grid size stored in the last two entries) of the model
     /// turned by yaw (left/right) and pitch (up/down), lit from the upper left.
     /// </summary>
-    public double[] Render(int size, double yawDegrees, double pitchDegrees, double zoom = 1)
+    public double[] Render(int size, double yawDegrees, double pitchDegrees, double zoom = 1) =>
+        Render(size, yawDegrees, pitchDegrees, zoom, null);
+
+    /// <summary>As above; also fills depth (size x size, 1 = nearest, 0 = background) if given.</summary>
+    public double[] Render(int size, double yawDegrees, double pitchDegrees, double zoom, double[] depth)
     {
         double yaw = yawDegrees * Math.PI / 180, pitch = pitchDegrees * Math.PI / 180;
         double cyaw = Math.Cos(yaw), syaw = Math.Sin(yaw), cp = Math.Cos(pitch), sp = Math.Sin(pitch);
@@ -78,6 +82,15 @@ internal sealed class ModelRender
             }
         }
         image[^2] = size; image[^1] = size;
+        if (depth != null)
+        {
+            // Normalise to the model's own depth range: near = white, far = dark, background black.
+            double lo = double.MaxValue, hi = double.MinValue;
+            foreach (double z in zbuffer) if (!double.IsNegativeInfinity(z)) { lo = Math.Min(lo, z); hi = Math.Max(hi, z); }
+            double range = Math.Max(1e-9, hi - lo);
+            for (int i = 0; i < zbuffer.Length; i++)
+                depth[i] = double.IsNegativeInfinity(zbuffer[i]) ? 0 : .2 + .8 * (zbuffer[i] - lo) / range;
+        }
         return image;
     }
 

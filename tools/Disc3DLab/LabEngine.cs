@@ -129,20 +129,16 @@ internal sealed class LabEngine : ILabBackend
     public IList<string> StereoTestPairs { get; } = StereoPairLayout.TestPairs.Select(p => p.Left + "," + p.Right).ToList();
 
     /// <summary>
-    /// Default save folder: the top of the system drive. Windows doesn't let normal programs write
-    /// files straight into C:\ without admin rights, so it's a folder there: C:\HoloStudio3D (or a folder from an earlier name, such as C:\Disc 3D Lab, if one is already there).
+    /// Where files go until you pick a folder: Documents\HoloStudio3D, like Disc Image Studio's own
+    /// Documents folder. Inside it, each design gets its own subfolder (see DesignFolder).
     /// </summary>
     public string DefaultOutputFolder
     {
         get
         {
-            string root = OperatingSystem.IsWindows()
-                ? Path.GetPathRoot(Environment.SystemDirectory) is { Length: > 0 } systemRoot ? systemRoot : @"C:\"
-                : Environment.CurrentDirectory;
-            // Keep using a folder from before the renames if one already exists.
-            foreach (string old in new[] { "DiscImageStudio Holographic", "3-Disc Lab", "Disc 3D Lab" })
-                if (Directory.Exists(Path.Combine(root, old))) return Path.Combine(root, old);
-            return Path.Combine(root, "HoloStudio3D");
+            string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            if (string.IsNullOrEmpty(documents)) documents = Environment.CurrentDirectory;
+            return Path.Combine(documents, "HoloStudio3D");
         }
     }
 
@@ -161,7 +157,8 @@ internal sealed class LabEngine : ILabBackend
     public string SaveStereogram(StereoRequest request, string folder, string name)
     {
         const int size = 2400; // 20 px per mm across the 120 mm disc
-        string output = UniquePath(Path.Combine(Folder(folder), SafeName(name, "stereogram") + ".png"));
+        string stem0 = SafeName(name, "stereogram");
+        string output = Path.Combine(DesignFolder(folder, "Magic Eye", stem0), stem0 + ".png");
         DepthMap map = Depth(request, size);
         Stereogram.Save(output, Stereogram.Render(map, Options(request)), size);
         map.SavePreview(Path.ChangeExtension(output, null) + "-depth.png");
@@ -186,11 +183,11 @@ internal sealed class LabEngine : ILabBackend
 
     public string MakeTestDisc(string preset, string folder, string name,
         Action<double, string> progress, Action<string> log, CancellationToken cancel) =>
-        MakeDisc(new TestDiscLayout(), DvdGeometry.Find(preset), folder, SafeName(name, "diffraction-test"), progress, log, cancel);
+        MakeDisc(new TestDiscLayout(), DvdGeometry.Find(preset), folder, "Rainbow tests", SafeName(name, "diffraction-test"), progress, log, cancel);
 
     public string MakeTiltDisc(TiltRequest request, string folder, string name,
         Action<double, string> progress, Action<string> log, CancellationToken cancel) =>
-        MakeDisc(Tilt(request), DvdGeometry.Find(request.Preset), folder, SafeName(name, "tilt-image"), progress, log, cancel);
+        MakeDisc(Tilt(request), DvdGeometry.Find(request.Preset), folder, "Tilt images", SafeName(name, "tilt-image"), progress, log, cancel);
 
     public string DescribePair(StereoPairRequest request) => StereoPairLayout.Summary(request);
 
@@ -207,18 +204,31 @@ internal sealed class LabEngine : ILabBackend
     {
         StereoPairLayout layout = new(request);
         if (request.TestPatches)
-            return MakeDisc(layout, DvdGeometry.Find(request.Preset), folder, SafeName(name, "hologram-test-patches"), progress, log, cancel);
-        return MakeDisc(layout, DvdGeometry.Find(request.Preset), folder, SafeName(name, "hologram"), progress, log, cancel,
+            return MakeDisc(layout, DvdGeometry.Find(request.Preset), folder, "Hologram tests", SafeName(name, "hologram-test-patches"), progress, log, cancel);
+        return MakeDisc(layout, DvdGeometry.Find(request.Preset), folder, "Holograms", SafeName(name, "hologram"), progress, log, cancel,
             stem => layout.SaveViews(stem + "-views.png"));
     }
 
     /// <summary>Testing aid: when set, disc images stop after this many sectors.</summary>
     public uint? SectorLimit { get; set; }
 
-    private string MakeDisc(IDiffractionLayout layout, DvdGeometry geometry, string folder, string name,
+    private string MakeDisc(IDiffractionLayout layout, DvdGeometry geometry, string folder, string category, string name,
         Action<double, string> progress, Action<string> log, CancellationToken cancel, Action<string> extras = null)
     {
-        string output = UniquePath(Path.Combine(Folder(folder), name + ".iso"));
+        string design = DesignFolder(folder, category, name);
+        string output = Path.Combine(design, name + ".iso");
+        try { return MakeDiscIn(layout, geometry, output, progress, log, cancel, extras); }
+        catch
+        {
+            // Don't leave an empty folder behind when a disc is cancelled or fails.
+            try { if (!Directory.EnumerateFileSystemEntries(design).Any()) Directory.Delete(design); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            throw;
+        }
+    }
+
+    private string MakeDiscIn(IDiffractionLayout layout, DvdGeometry geometry, string output,
+        Action<double, string> progress, Action<string> log, CancellationToken cancel, Action<string> extras)
+    {
         long needed = (long)(SectorLimit ?? geometry.Sectors) * 2048 + 50_000_000;
         long free = new DriveInfo(Path.GetPathRoot(output)!).AvailableFreeSpace;
         if (free < needed)
@@ -300,6 +310,20 @@ internal sealed class LabEngine : ILabBackend
         folder = Path.GetFullPath(Environment.ExpandEnvironmentVariables(folder));
         Directory.CreateDirectory(folder);
         return folder;
+    }
+
+    /// <summary>
+    /// Each design gets its own folder, grouped by kind: Output\Holograms\my-cube\my-cube.iso (with
+    /// its key, map and views next to it). A name that's already used gets -2, -3, ...
+    /// </summary>
+    private static string DesignFolder(string folder, string category, string name)
+    {
+        string parent = Path.Combine(Folder(folder), category);
+        string path = Path.Combine(parent, name);
+        for (int i = 2; Directory.Exists(path) && Directory.EnumerateFileSystemEntries(path).Any(); i++)
+            path = Path.Combine(parent, $"{name}-{i}");
+        Directory.CreateDirectory(path);
+        return path;
     }
 
     private static string SafeName(string name, string fallback)

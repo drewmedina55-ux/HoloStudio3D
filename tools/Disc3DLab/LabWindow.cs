@@ -227,6 +227,19 @@ namespace Disc3DLab
     {
         private readonly TrackBar _track;
         private readonly Label _value, _name;
+        /// <summary>The note shown under the slider. It's added to the page as an ordinary note (see Add),
+        /// so it wraps like every other note at any display scaling.</summary>
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden), System.ComponentModel.Browsable(false)]
+        public string HintText { get; }
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden), System.ComponentModel.Browsable(false)]
+        public Label HintLabel { get; set; }
+
+        // Showing or hiding the slider shows or hides its note too.
+        protected override void SetVisibleCore(bool value)
+        {
+            base.SetVisibleCore(value);
+            if (HintLabel != null) HintLabel.Visible = value;
+        }
         private Func<double, string> _nameFormat;
         private readonly double _min, _step;
         private readonly Func<double, string> _format;
@@ -235,12 +248,13 @@ namespace Disc3DLab
         public Slider(string name, double min, double max, double step, double value, Func<double, string> format, string hint = null)
         {
             _min = min; _step = step; _format = format;
-            Height = hint == null ? 58 : 76;
+            Height = 58;
+            HintText = hint;
             BackColor = Theme.Back;
 
             var label = _name = new Label { UseMnemonic = false, Text = name, ForeColor = Theme.Text, Font = Theme.Body, AutoSize = true, Location = new Point(0, 2) };
             _value = new Label { UseMnemonic = false, ForeColor = Theme.Muted, Font = Theme.Body, AutoSize = false, TextAlign = ContentAlignment.TopRight, Anchor = AnchorStyles.Top | AnchorStyles.Right, Height = 20 };
-            _track = new TrackBar
+            _track = new WheelSafeTrackBar
             {
                 Minimum = 0, Maximum = (int)Math.Round((max - min) / step), TickStyle = TickStyle.None, AutoSize = false, Height = 28,
                 BackColor = Theme.Back, Location = new Point(-6, 22), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
@@ -249,7 +263,6 @@ namespace Disc3DLab
             Value = value;
             _track.ValueChanged += (s, e) => { _value.Text = _format(Value); if (_nameFormat != null) _name.Text = _nameFormat(Value); Changed?.Invoke(this, EventArgs.Empty); };
             Controls.Add(label); Controls.Add(_value); Controls.Add(_track);
-            if (hint != null) Controls.Add(new Label { UseMnemonic = false, Text = hint, ForeColor = Theme.Faint, Font = Theme.Small, AutoSize = true, Location = new Point(0, 52) });
             _value.Text = _format(Value);
         }
 
@@ -277,6 +290,50 @@ namespace Disc3DLab
         }
     }
 
+    /// <summary>
+    /// The mouse wheel always scrolls the page, never a slider's or list's value, so scrolling past
+    /// a control can't change it by accident. (Drag a slider, or click a list, to change it.)
+    /// </summary>
+    internal static class PageScroll
+    {
+        public const int WM_MOUSEWHEEL = 0x020A;
+
+        public static int Delta(Message m) => (short)((m.WParam.ToInt64() >> 16) & 0xFFFF);
+
+        public static void Forward(Control control, int delta)
+        {
+            for (Control p = control.Parent; p != null; p = p.Parent)
+            {
+                if (p is ScrollableControl s && s.AutoScroll)
+                {
+                    Point at = s.AutoScrollPosition; // negative offsets
+                    int y = Math.Max(0, -at.Y - delta * 60 / 120);
+                    s.AutoScrollPosition = new Point(-at.X, y);
+                    return;
+                }
+            }
+        }
+    }
+
+    internal sealed class WheelSafeTrackBar : TrackBar
+    {
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == PageScroll.WM_MOUSEWHEEL) { PageScroll.Forward(this, PageScroll.Delta(m)); return; }
+            base.WndProc(ref m);
+        }
+    }
+
+    internal sealed class WheelSafeComboBox : ComboBox
+    {
+        protected override void WndProc(ref Message m)
+        {
+            // An open list still scrolls itself; a closed one passes the wheel to the page.
+            if (m.Msg == PageScroll.WM_MOUSEWHEEL && !DroppedDown) { PageScroll.Forward(this, PageScroll.Delta(m)); return; }
+            base.WndProc(ref m);
+        }
+    }
+
     /// <summary>Dashed box you can click or drop a file onto.</summary>
     internal sealed class DropZone : Panel
     {
@@ -290,6 +347,7 @@ namespace Disc3DLab
         [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden), System.ComponentModel.Browsable(false)]
         public bool Multiple { get; set; }
         private bool _over;
+        private static bool s_opened;
 
         public DropZone()
         {
@@ -311,12 +369,18 @@ namespace Disc3DLab
         protected override void OnClick(EventArgs e)
         {
             base.OnClick(e);
+            string samples = Path.Combine(AppContext.BaseDirectory, "samples");
             using (var dialog = new OpenFileDialog { Filter = Filter, Multiselect = Multiple })
+            {
+                // The first time, start in the bundled samples folder; after that Windows remembers.
+                if (Directory.Exists(samples) && !s_opened) dialog.InitialDirectory = samples;
                 if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
                 {
+                    s_opened = true;
                     if (Multiple) FilesChosen?.Invoke(dialog.FileNames);
                     else FileChosen?.Invoke(dialog.FileName);
                 }
+            }
         }
 
         protected override void OnDragEnter(DragEventArgs e)
@@ -543,7 +607,7 @@ namespace Disc3DLab
             int y = 78;
             foreach ((string id, string label) in new[]
             {
-                ("pair", "Hologram mode   ·  exp"), ("measure", "Stage 1 · Measure discs\nfirst time, or a new disc stack"), ("stereo", "Hidden-3D picture"), ("test", "Rainbow test disc   ·  exp"), ("tilt", "Tilt-image disc   ·  exp"), ("help", "How to burn & view"), ("about", "Info, instructions & credits"),
+                ("pair", "Hologram mode   ·  exp"), ("measure", "Stage 1 · Measure discs\nfirst time, or a new disc stack"), ("stereo", "Magic Eye-style picture"), ("test", "Rainbow test disc   ·  exp"), ("tilt", "Tilt-image disc   ·  exp"), ("help", "How to burn & view"), ("about", "Info, instructions & credits"),
             })
             {
                 int height = label.Contains("\n") ? 52 : 38;
@@ -624,7 +688,7 @@ namespace Disc3DLab
             switch (id)
             {
                 case "measure": SetHeader("Stage 1 · Measure discs  (first time, or a new disc stack)", "disc-probe times your drive's reads to measure the exact spiral of your discs, then installs it as a preset, so pictures land straight instead of streaked."); break;
-                case "stereo": SetHeader("Hidden-3D picture", "A Magic Eye style random-dot picture. Burn it like any image with Disc Image Studio, then look through the disc to see the shape float."); break;
+                case "stereo": SetHeader("Magic Eye-style picture", "A Magic Eye style random-dot picture. Burn it like any image with Disc Image Studio, then look through the disc to see the shape float."); break;
                 case "test": SetHeader("Rainbow test disc", "Experimental. Finds which data patterns turn into clean colours on your burner and discs."); break;
                 case "tilt": SetHeader("Tilt-image disc", "Experimental. Up to four pictures, each drawn with a different data pattern so each one flashes in colour at its own tilt."); break;
                 case "pair": SetHeader("Hologram mode", "Experimental. A 3D picture at 12 o'clock built from 2–7 views, each drawn with its own pattern, so each eye (and each head position) catches a different view."); break;
@@ -660,6 +724,12 @@ namespace Disc3DLab
             control.Width = ColumnWidth;
             control.Margin = new Padding(0, top, 0, bottom);
             column.Controls.Add(control);
+            if (control is Slider slider && slider.HintText != null)
+            {
+                slider.Margin = new Padding(0, top, 0, 0);
+                slider.HintLabel = new Label { UseMnemonic = false, Text = slider.HintText, Font = Theme.Small, ForeColor = Theme.Faint, AutoSize = true, MaximumSize = new Size(ColumnWidth, 0), Margin = new Padding(0, 0, 0, bottom) };
+                column.Controls.Add(slider.HintLabel);
+            }
             return control;
         }
 
@@ -672,7 +742,7 @@ namespace Disc3DLab
             return Add(column, label, 0, 8);
         }
 
-        private static ComboBox Combo() => new ComboBox
+        private static ComboBox Combo() => new WheelSafeComboBox
         {
             DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Panel, ForeColor = Theme.Text, Font = Theme.Body,
         };
@@ -1811,7 +1881,7 @@ namespace Disc3DLab
 
         // ───────────── about page ─────────────
 
-        internal const string AppVersion = "v1.02";
+        internal const string AppVersion = "v1.03";
         internal const string WebsiteUrl = "https://drewmedina.com";
         internal const string DisRepoUrl = "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio";
         internal const string ProbeRepoUrl = "https://github.com/Ashley-QwQ/disc-probe";
@@ -1861,14 +1931,14 @@ namespace Disc3DLab
             P("Setting up (once)", Theme.Muted);
             Step("Unzip the setup folder", "Unzip the whole package somewhere simple, such as C:\\DiscImageStudio-English. If you were given a ready-built folder with HoloStudio3D.exe in it, skip to step 3.");
             Step("Build the apps", "Install the .NET 10 SDK from Microsoft if you don't have it, then double-click Build-English.bat. It takes a few minutes and needs the internet once, to fetch a private copy of Python for Stage 1. When it finishes, the HoloStudio3D-App folder opens with everything in it.");
-            Step("Open HoloStudio3D", "Run HoloStudio3D-App\\HoloStudio3D.exe. Under OUTPUT FOLDER in the sidebar, click Change… to choose where discs are saved (default C:\\HoloStudio3D). Disc Image Studio itself is DiscImageStudio.exe in the same folder.");
+            Step("Open HoloStudio3D", "Run HoloStudio3D-App\\HoloStudio3D.exe. Under OUTPUT FOLDER in the sidebar, click Change… to choose where discs are saved (default Documents\\HoloStudio3D, with a folder for each design). Disc Image Studio itself is DiscImageStudio.exe in the same folder.");
             P("Stage 1: once for each new stack of discs", Theme.Muted);
             Step("Burn a measuring disc", "Open Stage 1, pick the drive you'll burn with, and click Make measuring disc image. Burn measuring-disc.iso with ImgBurn (Write image file to disc) at the slowest speed, then put it back in the drive. Keep that disc; never put a picture on it.");
             Step("Check the drive", "Click Check drive. You want \"CAV\" and low jitter. If it suggests a different speed, click the suggested command on the right.");
             Step("Measure the disc", "Click Measure geometry (about 5 minutes) and follow the verdict on the right. If it keeps stopping at the same place, click Measure without the trouble spot.");
             Step("Install your preset", "Put a BLANK disc from the same stack in the drive, click Read blank disc, name the preset, then click Install preset into Disc Image Studio. It then appears as \"Yours: …\" under Your DVD on every page.");
             P("Making a disc", Theme.Muted);
-            Step("Pick a disc type", "Hidden-3D picture works on CD or DVD: save the PNG, then in Disc Image Studio import it into a project using your preset and export an ISO. Hologram mode, Rainbow test disc and Tilt-image disc (DVD, experimental) build the finished .iso directly. On a new stack, burn the Rainbow test disc first to see which patterns glow.");
+            Step("Pick a disc type", "A Magic Eye-style picture works on CD or DVD: save the PNG, then in Disc Image Studio import it into a project using your preset and export an ISO. Hologram mode, Rainbow test disc and Tilt-image disc (DVD, experimental) build the finished .iso directly. On a new stack, burn the Rainbow test disc first to see which patterns glow.");
             Step("Burn the .iso", "Use ImgBurn → Write image file to disc, or right-click the .iso → Burn disc image, at your drive's slowest speed. Burn it as a disc image; don't copy the .iso onto a disc as a file. The image has no file system, so Explorer shows the burned disc as empty, which is expected.");
             Step("View it", "Use one small bright light (a phone flashlight) in a dim room, and tilt the disc slowly. The exact viewing steps for each disc type are on the How to burn & view page.");
 
@@ -1938,7 +2008,7 @@ namespace Disc3DLab
             page.Controls.Add(col);
             void H(string text) => col.Controls.Add(new Label { UseMnemonic = false, Text = text, Font = Theme.UI(11f, FontStyle.Bold), ForeColor = Theme.Text, AutoSize = true, Margin = new Padding(0, 18, 0, 6) });
             void P(string text, Color? color = null) => col.Controls.Add(new Label { UseMnemonic = false, Text = text, ForeColor = color ?? Color.FromArgb(198, 207, 220), AutoSize = true, MaximumSize = new Size(860, 0), Margin = new Padding(0, 0, 0, 6) });
-            H("Hidden-3D picture  (works on CD or DVD)");
+            H("Magic Eye-style picture  (works on CD or DVD)");
             P("1.  Pick a shape, a depth picture (white = near) or a 3D model, then click Save PNG.");
             P("2.  In Disc Image Studio: new project with your disc preset → Import images → choose the PNG. Keep scale 100% and position 0, 0. Leave brightness in the middle.");
             P("3.  Export an ISO and burn it with ImgBurn (or use the app's Burn page).");

@@ -50,6 +50,8 @@ if ($LASTEXITCODE -ne 0) { throw "HoloStudio3D publish failed with exit code $LA
 Get-ChildItem -LiteralPath $out -Filter '*.pdb' -File -Recurse | Remove-Item -Force
 if (-not (Test-Path -LiteralPath (Join-Path $out 'HoloStudio3D.exe'))) { throw 'HoloStudio3D.exe is missing.' }
 Copy-Item -LiteralPath 'HOLOSTUDIO3D.md' -Destination $out
+# Sample pictures, depth maps and models (the app's file boxes open here first).
+if (Test-Path -LiteralPath 'samples') { Copy-Item -LiteralPath 'samples' -Destination (Join-Path $out 'samples') -Recurse -Force }
 
 # ── Stage 1: disc-probe with its own private Python (no system install, nothing else touched) ──
 Write-Host 'Setting up disc-probe (Stage 1) with a private Python...' -ForegroundColor Cyan

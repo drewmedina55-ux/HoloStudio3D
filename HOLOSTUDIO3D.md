@@ -53,7 +53,7 @@ close one eye, then the other: each eye should see its own view light up.
 
 ## Also in the app
 
-- **Hidden-3D picture:** a "Magic Eye" style random-dot stereogram, saved as a plain black/white
+- **Magic Eye-style picture:** a hidden-3D random-dot stereogram, saved as a plain black/white
   PNG to burn with Disc Image Studio, on CD or DVD.
 
 ## Installing
@@ -93,7 +93,7 @@ The window has these sections in the sidebar:
   left and right picture; set your viewing distance, see the layout, then make the disc.
 - **Stage 1 · Measure discs (first time, or a new disc stack):** measures your own discs with disc-probe and installs the result as a
   preset, so pictures land straight instead of streaked. Do this once per spindle of discs.
-- **Hidden-3D picture:** live preview as you move the sliders. Drop a depth picture or 3D model
+- **Magic Eye-style picture:** live preview as you move the sliders. Drop a depth picture or 3D model
   onto the box, then *Save PNG*.
 - **Rainbow test disc:** the ring layout and key, then *Make test disc image*, with a progress bar
   and a Cancel button.
@@ -110,10 +110,14 @@ moved or deleted is simply left empty.
 
 **Output folder:** use *Change…* at the bottom of the sidebar (or *Choose…* next to any save box)
 to pick where files go, and *Open* to view the folder. Until you pick one, files go to
-`C:\HoloStudio3D` at the top of C: (if you already have `C:\Disc 3D Lab` or another folder from an earlier name, it keeps using that). Windows doesn't let normal programs save files directly in
-`C:\` itself, so it uses a folder there. The folder you pick, your disc preset and the last
+`Documents\HoloStudio3D`, like Disc Image Studio's own Documents folder. The folder you pick, your disc preset and the last
 section you used are remembered. Everything is also available from
 the command line (`HoloStudio3D.exe --help`).
+
+Inside the output folder, each design gets its own folder, grouped by kind, for example `Holograms\my-cube\` with the .iso, its key, map and views together.
+
+**Samples:** the app comes with sample pictures, depth maps and 3D models in its `samples` folder,
+which the file boxes open first. See `samples\README.txt`.
 
 ---
 
@@ -235,7 +239,7 @@ image at one eye.
 This is experimental: the bytes are verified exactly, but how well the depth shows depends on
 your drive, discs and light. The test-patch disc is the quickest way to check yours.
 
-### 2. Hidden-3D picture (CD or DVD)
+### 2. Magic Eye-style picture (CD or DVD)
 
 **Sources:** a built-in shape (torus, rings, spheres, ripple, star), a depth-map picture
 (white = near), or a 3D model (`.obj` / `.stl`, e.g. exported from Hi3D Studio or IdolMesh).
