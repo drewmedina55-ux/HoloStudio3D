@@ -1,0 +1,28 @@
+HOLOGRAM TEST PATCHES - KEY
+Disc layout preset: Yours: Verbatim DVD-R AZO 95101 2201-203 (measured) (user:user-dvd-20261105-224643-2dc2), 2,295,104 sectors
+
+Left eye pattern  A5   angles 31.8 / 40.1 / 49.6 deg (blue/green/red)
+Right eye pattern 66   angles 25.0 / 31.0 / 37.6 deg
+Fixed off pattern 92   angles 12.2 / 14.9 / 17.7 deg
+Your eyes are ~9.2 deg apart at 40 cm. Cells: 0.05 mm checkerboard.
+
+EIGHT 8 mm PATCHES AT 12 O'CLOCK (numbered on the disc)
+Outer row, off cells = random mix (what the app uses now):
+  1 all off     2 left only     3 right only     4 both on
+Inner row, off cells = the fixed off pattern above:
+  5 all off     6 left only     7 right only     8 both on
+
+HOW TO TEST (from Ashley-QwQ's suggestion)
+1. Fix the disc upright (patches at the top) and the lamp in place; don't move either.
+   A single-colour light (a red or green LED) gives the cleanest result.
+2. Put the camera (or your eye) where your LEFT eye would be. Photograph all eight patches.
+3. Move it sideways by your eye spacing (~6.5 cm) to the RIGHT eye position. Same exposure
+   (lock it), photograph again.
+4. What a working setup looks like:
+   - Left position:  2 and 4 bright, 3 about as dark as 1.
+   - Right position: 3 and 4 bright, 2 about as dark as 1.
+   - Compare rows: if 5-8 show a bigger difference between 'on' and 'off' than 1-4, the fixed
+     off pattern gives better contrast; try 'Off areas: fixed' for your holograms.
+5. Please share the two photos and this key on the HoloStudio3D or disc-probe GitHub page.
+
+The L/R test tiles at 6 o'clock are on this disc too (see the hologram key for how to read them).

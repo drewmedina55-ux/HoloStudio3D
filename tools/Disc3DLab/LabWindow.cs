@@ -1881,7 +1881,7 @@ namespace Disc3DLab
 
         // ───────────── about page ─────────────
 
-        internal const string AppVersion = "v1.03";
+        internal const string AppVersion = "v1.04";
         internal const string WebsiteUrl = "https://drewmedina.com";
         internal const string DisRepoUrl = "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio";
         internal const string ProbeRepoUrl = "https://github.com/Ashley-QwQ/disc-probe";
@@ -1954,6 +1954,10 @@ namespace Disc3DLab
             H("disc-probe  (Stage 1)");
             P("Stage 1's disc measuring is disc-probe by Ashley-QwQ, bundled unmodified and run through a small launcher, with a private copy of Python, NumPy, SciPy and Pillow.");
             Link("github.com/Ashley-QwQ/disc-probe", ProbeRepoUrl);
+
+            H("Extra samples");
+            P("Extra samples by Sliicy: stereograms and test-disc results (keys, maps and views) in the samples\\Sliicy folder. Thanks for the testing and feedback!");
+            Link("github.com/Sliicy", "https://github.com/Sliicy");
 
             H("Other parts");
             P("CDImage (arduinocelentano), StbImageSharp / StbImageWriteSharp, the .NET runtime, CommunityToolkit.Mvvm, MahApps IconPacks, Lucide icons and HarmonyOS Sans fonts. "

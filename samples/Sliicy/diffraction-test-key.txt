@@ -1,0 +1,32 @@
+DIFFRACTION TEST DISC - KEY
+Disc layout preset: Yours: Verbatim DVD-R AZO 95101 2201-203 (measured) (user:user-dvd-20261105-224643-2dc2), 2,295,104 sectors, channel bit 133.3 nm
+
+Rings are numbered 1 (innermost) to 12 (outermost); numbers are printed in each reference segment.
+Around each ring, segments alternate every 45 degrees: test grating, then random reference.
+The 'N' mark sits at 12 o'clock just outside ring 12.
+
+Ring  Texture                                   Period      First-order angle (blue 450 / green 550 / red 650 nm)
+   1  constant A5                               0.85 um     31.8 / 40.1 / 49.6   (r 24.6-27.0 mm)
+   2  constant 9C                               0.95 um     28.3 / 35.5 / 43.3   (r 27.3-29.7 mm)
+   3  constant 66                               1.07 um     25.0 / 31.0 / 37.6   (r 30.0-32.4 mm)
+   4  constant CE                               1.22 um     21.7 / 26.8 / 32.2   (r 32.8-35.2 mm)
+   5  constant B9                               1.42 um     18.4 / 22.7 / 27.2   (r 35.5-37.9 mm)
+   6  constant 9A                               1.71 um     15.3 / 18.8 / 22.4   (r 38.2-40.6 mm)
+   7  constant 92                               2.13 um     12.2 / 14.9 / 17.7   (r 40.9-43.3 mm)
+   8  constant 93                               2.84 um     9.1 / 11.2 / 13.2   (r 43.6-46.0 mm)
+   9  A5/92 alternating every 1 byte(s)         4.27 um     6.1 / 7.4 / 8.8   (r 46.4-48.8 mm)
+  10  A5/92 alternating every 2 byte(s)         8.53 um     3.0 / 3.7 / 4.4   (r 49.1-51.5 mm)
+  11  A5/92 alternating every 4 byte(s)         17.06 um    1.5 / 1.8 / 2.2   (r 51.8-54.2 mm)
+  12  random mix (no grating, reference)        none        -   (r 54.5-56.9 mm)
+
+HOW TO LOOK
+1. One small bright light (phone flashlight, bare LED, or sun). Dark room is best.
+2. Turn the disc so the area you're checking is at 12 or 6 o'clock: the tracks there run left-right,
+   and these gratings throw light sideways along the track (left-right), not toward/away from you.
+3. Start at the mirror reflection of the light, then tilt the disc slowly left and right.
+   A working grating ring lights up in a clean colour band that moves through the rainbow as you tilt,
+   at roughly the angle in the table. The random segments next to it should stay dull or smeared.
+4. Ignore the big rainbow that runs from the centre outward: that's the normal DVD track pitch.
+
+Report back which rings show a clean colour that the random segments don't. The bright rings become
+the 'inks' for tilt images.

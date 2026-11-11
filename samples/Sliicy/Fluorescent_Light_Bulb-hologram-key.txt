@@ -1,0 +1,28 @@
+HOLOGRAM DISC - KEY
+Disc layout preset: Yours: Verbatim DVD-R AZO 95101 2201-203 (measured) (user:user-dvd-20261105-224643-2dc2), 2,295,104 sectors
+
+Left eye : Fluorescent Light Bulb.stl (left view) pattern A5   angles 31.8 / 40.1 / 49.6 deg (blue/green/red)
+Right eye: Fluorescent Light Bulb.stl (right view) pattern 66   angles 25.0 / 31.0 / 37.6 deg
+Pattern separation 9.1 deg (green); your eyes are ~9.2 deg apart at 40 cm.
+Off areas: random mix (the original texture).
+Picture: 29.1 x 29.1 mm at 12 o'clock, 2 views interleaved in 0.05 mm cells.
+
+HOW TO LOOK
+1. Picture at 12 o'clock (top), disc upright in front of you, about 40 cm away.
+2. One small bright light (phone flashlight, bare LED) off to one SIDE, roughly level with the disc,
+   not between your eyes. A dark room helps.
+3. Close one eye, then the other: each eye should see its own view light up in colour.
+   Move the light or tilt the disc slowly until both eyes see theirs, then open both eyes.
+4. If the depth looks inside-out, burn again with 'Swap eyes' ticked (or move the light to the other side).
+
+TEST TILES (6 o'clock, printed upside down: turn the disc so they're at the top)
+Each tile holds an 'L' drawn for the left eye and an 'R' drawn for the right eye in the same spot.
+Close one eye at a time: the tile where your left eye sees only L and your right eye only R is
+the pattern pair that works best for your discs and light. With 2 views, use it via 'Pattern pair' and burn again.
+
+Tile  Left eye  Right eye  Separation (green)
+   1  B9        92         7.8 deg
+   2  66        B9         8.3 deg
+   3  A5        66         9.1 deg
+   4  CE        9A         8.0 deg
+   5  66        92         16.1 deg

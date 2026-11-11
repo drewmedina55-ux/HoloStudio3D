@@ -23,3 +23,8 @@ Rainbow test disc:
 
   diffraction-test-map.png, diffraction-test-key.txt
       What the rainbow test disc layout and its key look like.
+
+Extra samples by Sliicy:
+
+  Sliicy\   stereograms and the key, map and views files from Sliicy's own test discs
+           (an F-15 jet, a light bulb, a cube and the test patches). See Sliicy\README.txt.
