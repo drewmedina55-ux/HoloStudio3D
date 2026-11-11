@@ -234,5 +234,5 @@ HoloStudio3D wouldn't exist without these two projects and their authors:
 Thank you both for sharing your work as open source.
 
 Extra samples by **[Sliicy](https://github.com/Sliicy)**: stereograms and test-disc results
-(keys, maps and views) in `samples/Sliicy`. Thanks for the thorough testing and
+(keys and maps) in `samples/Sliicy`. Thanks for the thorough testing and
 feedback!

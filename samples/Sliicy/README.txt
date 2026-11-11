@@ -4,10 +4,7 @@ Extra samples by Sliicy (github.com/Sliicy)
 Real test results shared by Sliicy, made with HoloStudio3D on Verbatim DVD-R discs.
 Each "-key.txt" is the key file the app wrote for that disc, with the settings used.
 
-Hologram mode (made from 3D models, which aren't included):
-  F15-Jet-hologram-*                  an F-15 jet: 7 views, 8 copies around the disc, fixed off areas
-  Fluorescent_Light_Bulb-hologram-*   a spiral light bulb: 2 views, with the L/R test tiles
-  Cube-hologram-*                     a cube: 7 views, 8 copies around the disc
+Hologram mode:
   hologram-test-patches-*             the test-patch disc
 
 Magic Eye-style picture:

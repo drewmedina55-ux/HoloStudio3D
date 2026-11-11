@@ -1881,7 +1881,7 @@ namespace Disc3DLab
 
         // ───────────── about page ─────────────
 
-        internal const string AppVersion = "v1.04";
+        internal const string AppVersion = "v1.05";
         internal const string WebsiteUrl = "https://drewmedina.com";
         internal const string DisRepoUrl = "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio";
         internal const string ProbeRepoUrl = "https://github.com/Ashley-QwQ/disc-probe";
@@ -1956,7 +1956,7 @@ namespace Disc3DLab
             Link("github.com/Ashley-QwQ/disc-probe", ProbeRepoUrl);
 
             H("Extra samples");
-            P("Extra samples by Sliicy: stereograms and test-disc results (keys, maps and views) in the samples\\Sliicy folder. Thanks for the testing and feedback!");
+            P("Extra samples by Sliicy: stereograms and test-disc results (keys and maps) in the samples\\Sliicy folder. Thanks for the testing and feedback!");
             Link("github.com/Sliicy", "https://github.com/Sliicy");
 
             H("Other parts");
