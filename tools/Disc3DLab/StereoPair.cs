@@ -23,7 +23,10 @@ internal sealed class StereoPairLayout : IDiffractionLayout
     private readonly int _off;          // grating index used for "off" cells
     private readonly bool _offFixed;    // off cells use one fixed pattern aimed away from the eyes
     private readonly Grating _offGrating;
-    private readonly List<(double X, double Y, int Kind, bool Fixed, int Number)> _patches; // test-patch disc
+    private readonly List<(double X, double Y, int Kind, int Row, int Number)> _patches; // test-patch disc
+    private readonly int[] _patchRight;          // right-view pattern of each patch row: +0 / +10 / +14 %
+    private readonly int _stretch;               // right-view stretch actually used, percent
+    private readonly int _stretchAsked;
 
     // Gratings with one clean period. The four gray-palette bytes are the strongest.
     private static readonly string[] Clean = ["A5", "9C", "66", "CE", "B9", "9A", "92"];
@@ -42,7 +45,6 @@ internal sealed class StereoPairLayout : IDiffractionLayout
     private readonly LabelMask _labels = new();
     private readonly int _labelInk, _labelPaper;
     private readonly bool _testTiles;
-    private readonly int _patchFixed;
     private readonly double _patchSize;
 
     public StereoPairLayout(StereoPairRequest r)
@@ -56,6 +58,8 @@ internal sealed class StereoPairLayout : IDiffractionLayout
         }
         else Views = ChooseViews(r);
         _n = Views.Length;
+        _stretch = _n == 2 && !r.TestPatches && Grating.Stretched(ChoosePair(r).Right, r.RightStretch) != null ? r.RightStretch : 0;
+        _stretchAsked = _n == 2 && !r.TestPatches ? r.RightStretch : 0;
         PairLeft = Views[0]; PairRight = Views[^1];
         // Spread the views evenly: neighbouring cells in a row always belong to different views.
         _stride = _n == 2 ? 1 : _n >= 4 ? 2 : 1;
@@ -120,33 +124,41 @@ internal sealed class StereoPairLayout : IDiffractionLayout
         _offGrating = FixedOff(Views);
         _offFixed = r.OffMode == "fixed";
         _off = _random;
-        if (_offFixed || r.TestPatches)
+        if (_offFixed && !r.TestPatches)
         {
             gratings.Add(_offGrating);
-            if (_offFixed) _off = gratings.Count - 1;
+            _off = gratings.Count - 1;
         }
-        int fixedIndex = gratings.Count - 1;
         if (r.TestPatches)
         {
-            // Matched patches for the first optical test: all off, left only, right only, both on,
-            // once with the random-mix off texture (top row) and once with the fixed off pattern.
+            // Matched patches: all off / left only / right only / both on, in three rows that differ only
+            // in the right view's pattern: +0 % (outer), +10 % and +14 % (inner), all with the random-mix
+            // off texture (Ashley-QwQ: the fixed off pattern wasn't darker).
+            _patchRight = new int[Grating.Stretches.Length];
+            for (int row = 0; row < _patchRight.Length; row++)
+            {
+                Grating stretched = Grating.Stretched(PairRight, Grating.Stretches[row]);
+                if (stretched == null || row == 0) { _patchRight[row] = 1; continue; }
+                gratings.Add(stretched);
+                _patchRight[row] = gratings.Count - 1;
+            }
             _patches = [];
-            const double size = 8, gap = 2;
+            const double size = 6, gap = 2, rowPitch = 9;
             double rowWidth = 4 * size + 3 * gap;
-            for (int row = 0; row < 2; row++)
+            for (int row = 0; row < _patchRight.Length; row++)
             for (int k = 0; k < 4; k++)
             {
                 double cx0 = -rowWidth / 2 + k * (size + gap) + size / 2;
-                double cy0 = row == 0 ? -47 : -36;
-                _patches.Add((cx0, cy0, k, row == 1, row * 4 + k + 1));
+                double cy0 = -50 + row * rowPitch;
+                _patches.Add((cx0, cy0, k, row, row * 4 + k + 1));
             }
-            _patchFixed = fixedIndex;
             _patchSize = size;
-            foreach ((double px0, double py0, int _, bool _, int number) in _patches)
+            foreach ((double px0, double py0, int _, int _, int number) in _patches)
             {
                 double angle = Math.Atan2(px0, -py0), radius = Math.Sqrt(px0 * px0 + py0 * py0);
+                // Each number sits just outside its patch (toward the rim), in the gap between rows.
                 _labels.Draw(number.ToString(System.Globalization.CultureInfo.InvariantCulture), angle,
-                    py0 < -40 ? radius + size / 2 + 2.2 : radius - size / 2 - 2.2, .2);
+                    radius + size / 2 + 1.3, .18);
             }
         }
         if (_testTiles)
@@ -241,7 +253,7 @@ internal sealed class StereoPairLayout : IDiffractionLayout
         if (n == 2)
         {
             (Grating left, Grating right) = ChoosePair(r);
-            return [left, right];
+            return [left, Grating.Stretched(right, r.RightStretch) ?? right];
         }
         double target = TargetSeparation(r.DistanceCm);
         string[] steepFirst = Clean.OrderByDescending(Green).ToArray();
@@ -328,11 +340,11 @@ internal sealed class StereoPairLayout : IDiffractionLayout
     {
         int cx = (int)Math.Floor((x + 60) / _cell), cy = (int)Math.Floor((y + 60) / _cell);
         bool leftCell = ((cx + cy) & 1) == 0;
-        foreach ((double px0, double py0, int kind, bool fixedOff, int _) in _patches)
+        foreach ((double px0, double py0, int kind, int row, int _) in _patches)
         {
             if (Math.Abs(x - px0) > _patchSize / 2 || Math.Abs(y - py0) > _patchSize / 2) continue;
             bool on = kind == 3 || (kind == 1 && leftCell) || (kind == 2 && !leftCell);
-            return on ? (leftCell ? 0 : 1) : fixedOff ? _patchFixed : _random;
+            return on ? (leftCell ? 0 : _patchRight[row]) : _random;
         }
         return _random;
     }
@@ -368,7 +380,9 @@ internal sealed class StereoPairLayout : IDiffractionLayout
         if (views.Length == 2)
         {
             double l = views[0].AngleDegrees(550, 133.3), rr = views[1].AngleDegrees(550, 133.3);
-            return $"Left eye {views[0].Code} (~{l:0.0}°)  ·  right eye {views[1].Code} (~{rr:0.0}°)  ·  {Math.Abs(l - rr):0.0}° apart; " +
+            string stretch = r.RightStretch == 0 ? "" : views[1].Code != ChoosePair(r).Right.Code
+                ? $" (stretched +{r.RightStretch}%)" : $" (+{r.RightStretch}% needs the 66 right pattern: not applied)";
+            return $"Left eye {views[0].Code} (~{l:0.0}°)  ·  right eye {views[1].Code}{stretch} (~{rr:0.0}°)  ·  {Math.Abs(l - rr):0.0}° apart; " +
                    $"your eyes are ~{target:0.0}° apart at {r.DistanceCm:0} cm";
         }
         double step = Math.Abs(views[0].AngleDegrees(550, 133.3) - views[^1].AngleDegrees(550, 133.3)) / (views.Length - 1);
@@ -392,6 +406,10 @@ internal sealed class StereoPairLayout : IDiffractionLayout
             lines.Add($"Left eye : {Names[0],-36} pattern {PairLeft.Code,-4} angles {A(PairLeft)} deg (blue/green/red)");
             lines.Add($"Right eye: {Names[1],-36} pattern {PairRight.Code,-4} angles {A(PairRight)} deg");
             lines.Add($"Pattern separation {Math.Abs(PairLeft.AngleDegrees(550, g.BitNm) - PairRight.AngleDegrees(550, g.BitNm)):0.0} deg (green); your eyes are ~{target:0.0} deg apart at {DistanceCm:0} cm.");
+            if (_stretch != 0)
+                lines.Add($"Right view stretched +{_stretch}% ({PairRight.Label}): its colours shift toward red, so the left eye sees less of it.");
+            else if (_stretchAsked != 0)
+                lines.Add($"Right view stretch +{_stretchAsked}% asked for, but it only works with the 66 right pattern: not applied.");
         }
         else
         {
@@ -452,30 +470,45 @@ internal sealed class StereoPairLayout : IDiffractionLayout
             "HOLOGRAM TEST PATCHES - KEY",
             $"Disc layout preset: {g.Name} ({g.Id}), {g.Sectors:N0} sectors",
             "",
-            $"Left eye pattern  {PairLeft.Code,-4} angles {A(PairLeft)} deg (blue/green/red)",
-            $"Right eye pattern {PairRight.Code,-4} angles {A(PairRight)} deg",
-            $"Fixed off pattern {_offGrating.Code,-4} angles {A(_offGrating)} deg",
+            $"Left eye pattern  {PairLeft.Code,-6} angles {A(PairLeft)} deg (blue/green/red)",
+            $"Right eye pattern {PairRight.Code,-6} angles {A(PairRight)} deg",
             $"Your eyes are ~{target:0.0} deg apart at {DistanceCm:0} cm. Cells: {_cell:0.###} mm checkerboard.",
             "",
-            "EIGHT 8 mm PATCHES AT 12 O'CLOCK (numbered on the disc)",
-            "Outer row, off cells = random mix (what the app uses now):",
-            "  1 all off     2 left only     3 right only     4 both on",
-            "Inner row, off cells = the fixed off pattern above:",
-            "  5 all off     6 left only     7 right only     8 both on",
-            "",
-            "HOW TO TEST (from Ashley-QwQ's suggestion)",
-            "1. Fix the disc upright (patches at the top) and the lamp in place; don't move either.",
-            "   A single-colour light (a red or green LED) gives the cleanest result.",
-            "2. Put the camera (or your eye) where your LEFT eye would be. Photograph all eight patches.",
-            "3. Move it sideways by your eye spacing (~6.5 cm) to the RIGHT eye position. Same exposure",
-            "   (lock it), photograph again.",
-            "4. What a working setup looks like:",
-            "   - Left position:  2 and 4 bright, 3 about as dark as 1.",
-            "   - Right position: 3 and 4 bright, 2 about as dark as 1.",
-            "   - Compare rows: if 5-8 show a bigger difference between 'on' and 'off' than 1-4, the fixed",
-            "     off pattern gives better contrast; try 'Off areas: fixed' for your holograms.",
-            "5. Please share the two photos and this key on the HoloStudio3D or disc-probe GitHub page.",
+            "TWELVE 6 mm PATCHES AT 12 O'CLOCK, THREE ROWS (numbered on the disc)",
+            "Every row is the same four patches, left to right:  all off / left only / right only / both on.",
+            "The rows differ only in the right eye's pattern (Ashley-QwQ's test): a longer period moves its",
+            "colours toward red, so at the left eye it should slip past red into infrared and vanish.",
+            "Off areas everywhere: random mix.",
         };
+        for (int row = 0; row < _patchRight.Length; row++)
+        {
+            Grating right = Gratings[_patchRight[row]];
+            int first = row * 4 + 1;
+            string where = row == 0 ? "outer" : row == _patchRight.Length - 1 ? "inner" : "middle";
+            string name = row == 0 ? "+0 %  (as now)" : _patchRight[row] == 1 ? $"+{Grating.Stretches[row]} %  (not available for {PairRight.Code}: same as row 1)" : $"+{Grating.Stretches[row]} %";
+            lines.Add($"  {where,-6} row  {$"{first}-{first + 3}",-5}  right pattern {right.Code,-6} angles {A(right)} deg   {name}");
+        }
+        lines.AddRange(
+        [
+            "",
+            "HOW TO TEST",
+            "1. Fix the disc upright (patches at the top) and the lamp in place. Don't move either, and keep",
+            "   the lamp in exactly the same place for every photo, on every disc, so the shots compare.",
+            "2. Put the camera (or your eye) where your LEFT eye would be. Lock the exposure. Photograph.",
+            "3. Move it sideways by your eye spacing (~6.5 cm) to the RIGHT eye position. Photograph again.",
+            "4. In each row, what a working setup looks like:",
+            "   - Left position:  'left only' and 'both' bright; 'right only' about as dark as 'all off'.",
+            "   - Right position: 'right only' and 'both' bright; 'left only' about as dark as 'all off'.",
+            "5. Pick the row where 'right only' is darkest at the LEFT position while it still shows well at",
+            "   the RIGHT position (it turns from green toward yellow there). Use that stretch for your holograms",
+            "   ('Right view pattern' in the app, or --stretch 10 / --stretch 14).",
+            "6. Please share the two photos and this key on the HoloStudio3D or disc-probe GitHub page.",
+        ]);
+        return Finish(lines);
+    }
+
+    private string Finish(List<string> lines)
+    {
         if (_tiles.Count > 0)
             lines.AddRange(["", "The L/R test tiles at 6 o'clock are on this disc too (see the hologram key for how to read them)."]);
         return string.Join(Environment.NewLine, lines);

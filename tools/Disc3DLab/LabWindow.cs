@@ -475,6 +475,7 @@ namespace Disc3DLab
         private Segmented _pairCopies;
         private CheckBox _pairUpright;
         private Segmented _pairOff;
+        private Segmented _pairStretch;
         private LabButton _pairPatches;
         private string _pairModelFile;
         private string[] _pairFrameFiles;
@@ -1716,10 +1717,15 @@ namespace Disc3DLab
             _pairTest = Add(col, new CheckBox { Text = "Add L/R test tiles at 6 o'clock", Checked = true, ForeColor = Theme.Text, Height = 26 });
             _pairTest.CheckedChanged += (s, e) => QueuePair();
 
+            Section(col, "Right view pattern");
+            _pairStretch = Add(col, new Segmented(("0", "+0% (as before)"), ("10", "+10%"), ("14", "+14%")), 0, 4);
+            _pairStretch.Changed += (s, e) => QueuePair();
+            Hint(col, "Experimental, from Ashley-QwQ's test-patch photos: the right view leaked into the left eye as red. A longer pattern moves its colours toward red, so at the left eye it slips into infrared and vanishes, while the right eye sees yellow instead of green. Works with 2 views and the 66 right pattern (the usual pair). Burn the test-patch disc below to see which one works best for you.");
+
             Section(col, "Off areas");
             _pairOff = Add(col, new Segmented(("mix", "Random mix"), ("fixed", "Fixed, aimed away")), 0, 4);
             _pairOff.Changed += (s, e) => QueuePair();
-            Hint(col, "What fills the dark parts of the picture. Random mix is the original. Fixed (experimental, suggested by disc-probe's author) uses one pattern that sends its light away from your eyes, for possibly better contrast. The test-patch disc below compares both.");
+            Hint(col, "What fills the dark parts of the picture. Random mix is the original, and the one to use: Fixed (experimental) sends its light away from your eyes, but in Ashley-QwQ's photos it wasn't darker.");
 
             Section(col, "Your DVD");
             Add(col, PresetCombo(), 0, 4);
@@ -1732,7 +1738,7 @@ namespace Disc3DLab
             Hint(col, "All the views it builds are saved next to the .iso as -views.png (left-most first) so you can check them. View with one small light off to the SIDE. Close one eye, then the other: each should see its own view.");
             _pairPatches = Add(col, new LabButton("Make test-patch disc  (no picture needed)") { Height = 36 }, 4, 4);
             _pairPatches.Click += (s, e) => StartJob("patches");
-            Hint(col, "Eight matched patches (all off / left only / right only / both on, with each kind of off area) for a photo test of whether each eye really gets its own view. Uses the viewing distance, pattern pair and DVD above; the key says how to photograph it.");
+            Hint(col, "Twelve matched patches (all off / left only / right only / both on) in three rows: the right view's pattern at +0%, +10% and +14%, side by side. Photograph from both eye positions with the lamp fixed to see which stretch stops the leak. Uses the viewing distance, pattern pair and DVD above; the key says how.");
 
             _pairPicture = Picture();
             _pairKey = KeyBox();
@@ -1829,6 +1835,7 @@ namespace Disc3DLab
                 OffsetXMm = _pairMoveX.Value, OffsetYMm = _pairMoveY.Value,
                 Copies = int.Parse(_pairCopies.Value, CultureInfo.InvariantCulture), UprightBottom = _pairUpright.Checked,
                 OffMode = _pairOff.Value,
+                RightStretch = int.Parse(_pairStretch.Value, CultureInfo.InvariantCulture),
                 CellMm = double.Parse(_pairDetail.Value, System.Globalization.CultureInfo.InvariantCulture),
                 TestStrips = _pairTest.Checked, Preset = Preset,
                 ViewCount = (int)Math.Round(_pairViews.Value), FrameFiles = _pairFrameFiles,
@@ -1881,7 +1888,7 @@ namespace Disc3DLab
 
         // ───────────── about page ─────────────
 
-        internal const string AppVersion = "v1.05";
+        internal const string AppVersion = "v1.06";
         internal const string WebsiteUrl = "https://drewmedina.com";
         internal const string DisRepoUrl = "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio";
         internal const string ProbeRepoUrl = "https://github.com/Ashley-QwQ/disc-probe";

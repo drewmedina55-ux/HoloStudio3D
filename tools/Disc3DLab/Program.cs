@@ -91,8 +91,10 @@ internal static class Program
           --copies N        repeat the picture around the disc, 1-8 (each upright when turned to the top)
           --upright-bottom  with --copies 2: keep the bottom copy upright, so both show at once
           --off-fixed       fill "off" areas with one pattern aimed away from your eyes (better contrast?)
-          --test-patches    make the test-patch disc (all off / left / right / both, two off textures);
-                            needs no picture
+          --stretch P       2 views: stretch the right view's pattern by 0, 10 or 14 percent (needs the
+                            66 right pattern) so the left eye sees less of it
+          --test-patches    make the test-patch disc (all off / left / right / both, in rows of
+                            +0 / +10 / +14 % right pattern); needs no picture
           --detail MM       dither cell size: 0.05 fine (default), 0.1 normal, 0.2 coarse
           --no-test         leave out the L/R test tiles at 6 o'clock
           --out, --preset, --threads   as above
@@ -211,6 +213,7 @@ internal static class Program
             Copies = o.Int("--copies", 1),
             OffMode = o.Has("--off-fixed") ? "fixed" : "mix",
             TestPatches = o.Has("--test-patches"),
+            RightStretch = o.Int("--stretch", 0),
             UprightBottom = o.Has("--upright-bottom"),
             CellMm = o.Double("--detail", .05),
             TestStrips = !o.Has("--no-test"),
@@ -222,6 +225,8 @@ internal static class Program
             if (pair.Length != 2) throw new ArgumentException("--pair needs two patterns, e.g. B9,92 (left,right).");
             request.PairLeft = pair[0]; request.PairRight = pair[1];
         }
+        if (Array.IndexOf(Grating.Stretches, request.RightStretch) < 0)
+            throw new ArgumentException("--stretch is 0, 10 or 14.");
         if (!request.TestPatches && request.Mode == "two" && (request.LeftFile is null || request.RightFile is null))
             throw new ArgumentException("Give --image FILE --depthmap FILE, --model FILE, --frames A,B,C, --sbs FILE, or both --left FILE and --right FILE.");
         if (request.Mode == "depth" && request.DepthFile is null) throw new ArgumentException("--image needs --depthmap FILE too.");
@@ -274,7 +279,7 @@ internal static class Program
 /// <summary>--name value pairs; bare flags (--invert, --no-guides, --overwrite) take no value.</summary>
 internal sealed class Options
 {
-    private static readonly HashSet<string> Flags = ["--invert", "--no-guides", "--overwrite", "--squeezed", "--cross-eyed", "--swap", "--no-test", "--invert-depth", "--large"];
+    private static readonly HashSet<string> Flags = ["--invert", "--no-guides", "--overwrite", "--squeezed", "--cross-eyed", "--swap", "--no-test", "--invert-depth", "--large", "--test-patches", "--off-fixed", "--upright-bottom"];
     private readonly Dictionary<string, string> _values = new(StringComparer.Ordinal);
 
     public static Options Parse(IEnumerable<string> arguments)

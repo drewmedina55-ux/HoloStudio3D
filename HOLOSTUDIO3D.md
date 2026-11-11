@@ -223,15 +223,24 @@ image at one eye.
   or `--detail MM`. Grays are spread with error diffusion, separately for each view's own cells, so
   every view keeps the same gray level (before v1.02 a mid-gray could come out much brighter for
   one eye than the other). If a Fine burn looks faint or washed out, try Normal.
-- **Off areas:** what fills the dark parts of the picture. *Random mix* is the original texture,
-  but it contains the view patterns too, so it isn't fully dark for your eyes. *Fixed, aimed away*
-  (`--off-fixed`, experimental) fills them with one pattern (92, about 15°) that sends its light
-  away from both eyes, for possibly better contrast.
-- **Test-patch disc** (`--test-patches`): eight matched 8 mm patches at 12 o'clock (all off, left
-  only, right only, both on, once with each kind of off area), plus the L/R tiles. Fix the disc
-  and lamp, photograph from where each eye would be with the same exposure, and compare: it shows
-  directly whether each eye gets its own view and which off area gives better contrast. The key
-  file explains what to look for. Suggested by Ashley-QwQ, disc-probe's author.
+- **Right view pattern** (`--stretch 0|10|14`, experimental, 2 views): Ashley-QwQ's test-patch
+  photos showed the right view leaking into the left eye as red. Stretching the right view's
+  pattern (a longer period) moves all its colours toward red, so at the left eye it slips past red
+  into infrared and vanishes, while the right eye sees it shift only from green toward yellow.
+  *+14%* is the clean pattern CE; *+10%* is an 11-byte run that repeats every 8.8 channel bits (no
+  single byte gives that period), chosen by searching the EFMPlus table for the cleanest one. Both
+  need the 66 right pattern (the usual pair, A5 / 66); with any other pair the setting is ignored
+  and the key says so.
+- **Off areas:** what fills the dark parts of the picture. *Random mix* is the original texture and
+  the recommended one. *Fixed, aimed away* (`--off-fixed`, experimental) fills them with one pattern
+  (92, about 15°) that sends its light away from both eyes; in Ashley-QwQ's photos it wasn't darker.
+- **Test-patch disc** (`--test-patches`): twelve matched 6 mm patches at 12 o'clock in three rows.
+  Each row is all off, left only, right only, both on; the rows differ only in the right view's
+  pattern: +0% (outer), +10% and +14% (inner). Plus the L/R tiles. Fix the disc and the lamp (keep
+  the lamp in exactly the same place for every photo), photograph from where each eye would be with
+  the same exposure, and compare: the best row is the one where *right only* is darkest from the
+  left eye while it still shows from the right eye. The key file explains what to look for.
+  Suggested by Ashley-QwQ, disc-probe's author.
 - **Viewing:** picture at the top, about your chosen distance away, with one small light off to
   the side (not between your eyes). With more than 2 views, move your head slowly left and right.
   If the depth looks inside-out, tick *Swap eyes*.

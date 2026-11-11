@@ -129,8 +129,37 @@ internal sealed record Grating(string Code, string Label, double PeriodChannelBi
         Constant(0xA5, 6.4),    // ~40 deg, the steepest tilt
     ];
 
+    /// <summary>A repeating run of bytes whose marks together form one grating (see <see cref="Stretched"/>).</summary>
+    public static Grating Sequence(string code, string label, double period, byte[] bytes) =>
+        new(code, label, period, index => bytes[(int)(index % (ulong)bytes.Length)]);
+
+    /// <summary>
+    /// 66 with a 10 % longer period (8.8 T instead of 8 T). No single byte gives that period, so this is
+    /// an 11-byte run (176 channel bits = exactly 20 periods), found by searching the ECMA-267 EFMPlus
+    /// main table (bytes >= 0x58 only) for the sequence whose marks put the most energy into 8.8 T:
+    /// about 81 % in that one period, close to plain 66 (85 %) and cleaner than CE (74 %).
+    /// </summary>
+    public static readonly Grating Stretch66By10 = Sequence("66+10", "66 stretched 10 % (11-byte run)", 8.8,
+        [0xBB, 0x7D, 0x98, 0xBF, 0x67, 0x81, 0xC6, 0x67, 0xCC, 0xFC, 0x58]);
+
+    /// <summary>The right-view stretches that exist, in percent. +14 is plain CE (9.14 T vs 66's 8 T).</summary>
+    public static readonly int[] Stretches = [0, 10, 14];
+
+    /// <summary>
+    /// The pattern with a longer period, so its colours move toward red (Ashley-QwQ's fix for the
+    /// right view leaking into the left eye). Only 66 has stretched versions; null for anything else.
+    /// </summary>
+    public static Grating Stretched(Grating g, int percent) => percent switch
+    {
+        0 => g,
+        10 when g.Code == "66" => Stretch66By10,
+        14 when g.Code == "66" => FromCode("CE"),
+        _ => null,
+    };
+
     public static Grating FromCode(string code)
     {
+        if (string.Equals(code, Stretch66By10.Code, StringComparison.OrdinalIgnoreCase)) return Stretch66By10;
         foreach (Grating g in TestRings) if (string.Equals(g.Code, code, StringComparison.OrdinalIgnoreCase)) return g;
         throw new ArgumentException($"Unknown grating '{code}'. Use one of: {string.Join(", ", TestRings.Select(g => g.Code))}");
     }
