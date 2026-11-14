@@ -398,7 +398,7 @@ internal sealed class StereoPairLayout : IDiffractionLayout
         var lines = new List<string>
         {
             "HOLOGRAM DISC - KEY",
-            $"Disc layout preset: {g.Name} ({g.Id}), {g.Sectors:N0} sectors",
+            $"Disc layout preset: {g.Name} ({g.Id}), {g.SectorText}",
             "",
         };
         if (_n == 2)
@@ -468,7 +468,7 @@ internal sealed class StereoPairLayout : IDiffractionLayout
         var lines = new List<string>
         {
             "HOLOGRAM TEST PATCHES - KEY",
-            $"Disc layout preset: {g.Name} ({g.Id}), {g.Sectors:N0} sectors",
+            $"Disc layout preset: {g.Name} ({g.Id}), {g.SectorText}",
             "",
             $"Left eye pattern  {PairLeft.Code,-6} angles {A(PairLeft)} deg (blue/green/red)",
             $"Right eye pattern {PairRight.Code,-6} angles {A(PairRight)} deg",

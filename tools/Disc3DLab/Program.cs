@@ -28,6 +28,7 @@ internal static class Program
                 case "stereo-pair": RunStereoPair(options); break;
                 case "presets":
                     foreach (DvdGeometry g in DvdGeometry.BuiltIn()) Console.WriteLine($"{g.Id,-32} {g.Name}");
+                    if (DvdGeometry.UserPresetProblem != null) Console.WriteLine(DvdGeometry.UserPresetProblem);
                     break;
                 default: throw new ArgumentException($"Unknown command '{args[0]}'. Run with --help.");
             }
@@ -159,7 +160,7 @@ internal static class Program
         string output = o.OutPath("diffraction-test.iso");
         TestDiscLayout layout = new();
         WriteKeyAndMap(layout, geometry, output);
-        Console.WriteLine($"Generating the full DVD image ({geometry.Sectors * 2048L / 1e9:0.0} GB). This takes a while...");
+        Console.WriteLine($"Generating the full DVD image ({geometry.OutputSectors * 2048L / 1e9:0.0} GB). This takes a while...");
         WriteWithCtrlC(layout, geometry, output, o);
         PrintBurnHint(output);
     }
@@ -177,7 +178,7 @@ internal static class Program
         DvdGeometry geometry = DvdGeometry.Find(o.Text("--preset", "dvd-5-120mm"));
         string output = o.OutPath("tilt-image.iso");
         WriteKeyAndMap(layout, geometry, output);
-        Console.WriteLine($"Generating the full DVD image ({geometry.Sectors * 2048L / 1e9:0.0} GB). This takes a while...");
+        Console.WriteLine($"Generating the full DVD image ({geometry.OutputSectors * 2048L / 1e9:0.0} GB). This takes a while...");
         WriteWithCtrlC(layout, geometry, output, o);
         PrintBurnHint(output);
     }
@@ -239,7 +240,7 @@ internal static class Program
             layout.SaveViews(Path.ChangeExtension(output, null) + "-views.png");
             Console.WriteLine($"Views (left-most first): {Path.ChangeExtension(output, null)}-views.png");
         }
-        Console.WriteLine($"Generating the full DVD image ({geometry.Sectors * 2048L / 1e9:0.0} GB). This takes a while...");
+        Console.WriteLine($"Generating the full DVD image ({geometry.OutputSectors * 2048L / 1e9:0.0} GB). This takes a while...");
         WriteWithCtrlC(layout, geometry, output, o);
         PrintBurnHint(output);
     }

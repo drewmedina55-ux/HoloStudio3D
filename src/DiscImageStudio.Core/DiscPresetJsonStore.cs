@@ -23,7 +23,9 @@ public sealed record CdDiscPresetDefinition(
     string? Contributor = null,
     double PitchLinear = 0,
     double PitchQuadratic = 0,
-    double PitchCubic = 0);
+    double PitchCubic = 0,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    long? UsableSectors = null);
 
 public sealed record DvdDiscPresetDefinition(
     string Id,
@@ -43,7 +45,11 @@ public sealed record DvdDiscPresetDefinition(
     double PitchQuadratic = 0,
     double PitchCubic = 0,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    string? Contributor = null);
+    string? Contributor = null,
+    // Added in Disc Image Studio 1.5.0: how many sectors can be written; totalSectors still sets
+    // the geometry. Read, checked and written back so 1.5.0 preset files work here unchanged.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    uint? UsableSectors = null);
 
 public sealed record BluRayDiscPresetDefinition(
     string Id,
@@ -61,7 +67,9 @@ public sealed record BluRayDiscPresetDefinition(
     string? Contributor = null,
     double PitchLinear = 0,
     double PitchQuadratic = 0,
-    double PitchCubic = 0);
+    double PitchCubic = 0,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    uint? UsableSectors = null);
 
 public sealed record DiscPresetJsonDocument(
     int SchemaVersion,
@@ -343,6 +351,8 @@ public static class DiscPresetJsonStore
                 throw InvalidValue(preset.Id, "sectors", "must be greater than 0");
             }
 
+            ValidateUsableSectors(preset.Id, preset.Sectors, preset.UsableSectors, 1);
+
             ValidateRadiusRange(preset.Id, preset.InnerRadiusMm, preset.OuterRadiusMm);
             ValidatePitch(preset.Id, preset.PitchLinear, preset.PitchQuadratic, preset.PitchCubic);
             ValidatePositiveFinite(
@@ -376,10 +386,14 @@ public static class DiscPresetJsonStore
                 throw InvalidValue(preset.Id, "totalSectors", "must be greater than 0");
             }
 
-            if (preset.TotalSectors % 16 != 0)
+            // 1.5.0 lets the geometry total be any number when usableSectors gives the writable,
+            // 16-aligned amount.
+            if (preset.UsableSectors is null && preset.TotalSectors % 16 != 0)
             {
                 throw InvalidValue(preset.Id, "totalSectors", "must be a multiple of 16");
             }
+
+            ValidateUsableSectors(preset.Id, preset.TotalSectors, preset.UsableSectors, 16);
 
             ValidateRadiusRange(preset.Id, preset.InnerRadiusMm, preset.OuterRadiusMm);
             ValidatePitch(preset.Id, preset.PitchLinear, preset.PitchQuadratic, preset.PitchCubic);
@@ -410,12 +424,23 @@ public static class DiscPresetJsonStore
                     $"must be a multiple of 32 and no more than {ProjectDocument.BluRaySectorsPerLayer:N0}");
             }
 
+            ValidateUsableSectors(preset.Id, preset.TotalSectors, preset.UsableSectors, 32);
+
             ValidateRadiusRange(preset.Id, preset.InnerRadiusMm, preset.OuterRadiusMm);
             ValidatePitch(preset.Id, preset.PitchLinear, preset.PitchQuadratic, preset.PitchCubic);
             if (preset.OuterRadiusMm > 60)
             {
                 throw InvalidValue(preset.Id, "outerRadiusMm", "cannot exceed 60");
             }
+        }
+    }
+
+    private static void ValidateUsableSectors(string presetId, long total, long? usable, int alignment)
+    {
+        if (usable is { } value && (value <= 0 || value > total || value % alignment != 0))
+        {
+            throw InvalidValue(presetId, "usableSectors",
+                $"must be greater than 0, no more than the total sectors, and a multiple of {alignment}");
         }
     }
 

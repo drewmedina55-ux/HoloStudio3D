@@ -114,9 +114,10 @@ internal sealed class LabEngine : ILabBackend
         get
         {
             int yours = Presets.Count(p => p.Id.StartsWith("user:", StringComparison.Ordinal));
-            if (DvdGeometry.UserPresetProblem != null) return DvdGeometry.UserPresetProblem;
+            string listed = $"{yours} of your own preset(s) from Disc Image Studio are listed first (\"Yours:\").";
+            if (DvdGeometry.UserPresetProblem != null) return (yours > 0 ? listed + " " : "") + DvdGeometry.UserPresetProblem;
             return yours > 0
-                ? $"{yours} of your own preset(s) from Disc Image Studio are listed first (\"Yours:\")."
+                ? listed
                 : "Presets you save in Disc Image Studio, or install with disc-probe, appear here as \"Yours:\" after restarting HoloStudio3D.";
         }
     }
@@ -229,7 +230,7 @@ internal sealed class LabEngine : ILabBackend
     private string MakeDiscIn(IDiffractionLayout layout, DvdGeometry geometry, string output,
         Action<double, string> progress, Action<string> log, CancellationToken cancel, Action<string> extras)
     {
-        long needed = (long)(SectorLimit ?? geometry.Sectors) * 2048 + 50_000_000;
+        long needed = (long)(SectorLimit ?? geometry.OutputSectors) * 2048 + 50_000_000;
         long free = new DriveInfo(Path.GetPathRoot(output)!).AvailableFreeSpace;
         if (free < needed)
             throw new IOException($"Not enough free space in {Path.GetDirectoryName(output)}: needs {needed / 1e9:0.0} GB, has {free / 1e9:0.0} GB.");

@@ -10,8 +10,16 @@ namespace Disc3DLab;
 /// calibration only affects where shapes land, so the standard preset is fine for tests.
 /// </summary>
 internal sealed record DvdGeometry(string Id, string Name, uint Sectors, double InnerMm, double OuterMm,
-    double BitNm, double PitchLinear, double PitchQuadratic, double PitchCubic)
+    double BitNm, double PitchLinear, double PitchQuadratic, double PitchCubic, uint? UsableSectors = null)
 {
+    /// <summary>
+    /// How many sectors the image has. <see cref="Sectors"/> is the total that sets the geometry (where
+    /// each sector lies); presets from Disc Image Studio 1.5.0 can also give a smaller writable amount.
+    /// </summary>
+    public uint OutputSectors => UsableSectors ?? Sectors / 16 * 16;
+
+    public string SectorText => OutputSectors == Sectors ? $"{Sectors:N0} sectors" : $"{Sectors:N0} sectors ({OutputSectors:N0} written)";
+
     /// <summary>
     /// Your own presets first, then the app's built-in ones. "Yours" are the DVD presets in Disc Image
     /// Studio's user preset file (%LOCALAPPDATA%\DiscImageStudio\disc-presets.json): the ones you save in
@@ -36,13 +44,10 @@ internal sealed record DvdGeometry(string Id, string Name, uint Sectors, double 
         try
         {
             string path = UserPresetPath;
-            if (File.Exists(path))
-                list.AddRange(DiscPresetJsonStore.Load(path).DvdPresets
-                    .Where(p => p.OuterRadiusMm > 50 && p.Id != "user-custom-dvd") // skip the untouched template
-                    .Select(p => From(p, "user:" + p.Id, "Yours: " + p.DisplayName)));
+            if (File.Exists(path)) list.AddRange(ReadUserPresets(path));
         }
-        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException
-            or System.Text.Json.JsonException or ArgumentException or InvalidOperationException or FormatException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or System.Text.Json.JsonException)
         {
             UserPresetProblem = "Couldn't read your presets file (" + exception.Message + "). Using the built-in presets.";
         }
@@ -52,10 +57,78 @@ internal sealed record DvdGeometry(string Id, string Name, uint Sectors, double 
         return list;
     }
 
+    /// <summary>
+    /// Reads the DVD presets from the user preset file, written by this edition of Disc Image Studio,
+    /// by the original (1.5.0 adds usableSectors, for one), or by disc-probe. Only the fields HoloStudio3D
+    /// needs are read and anything else is ignored, so a newer file still works; a preset that can't
+    /// be used is skipped (and named) instead of losing all of them. The file is never written.
+    /// </summary>
+    internal static List<DvdGeometry> ReadUserPresets(string path)
+    {
+        List<DvdGeometry> list = [];
+        List<string> skipped = [];
+        using System.Text.Json.JsonDocument document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path),
+            new System.Text.Json.JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = System.Text.Json.JsonCommentHandling.Skip });
+        if (!TryGet(document.RootElement, "dvdPresets", out System.Text.Json.JsonElement presets)
+            || presets.ValueKind != System.Text.Json.JsonValueKind.Array)
+            return list;
+        foreach (System.Text.Json.JsonElement p in presets.EnumerateArray())
+        {
+            string id = Text(p, "id");
+            try
+            {
+                string name = Text(p, "displayName") ?? id;
+                double inner = Number(p, "innerRadiusMm"), outer = Number(p, "outerRadiusMm");
+                double total = Number(p, "totalSectors");
+                double? usable = TryGet(p, "usableSectors", out System.Text.Json.JsonElement u)
+                    && u.ValueKind == System.Text.Json.JsonValueKind.Number ? u.GetDouble() : null;
+                double linear = Optional(p, "pitchLinear"), quadratic = Optional(p, "pitchQuadratic"), cubic = Optional(p, "pitchCubic");
+                if (string.IsNullOrWhiteSpace(id)) throw new InvalidDataException("no id");
+                if (id == "user-custom-dvd" || outer <= 50) continue; // the untouched template; 8 cm discs
+                if (total < 64 || total > uint.MaxValue || total != Math.Floor(total)) throw new InvalidDataException("totalSectors");
+                if (usable is { } us && (us < 64 || us > total || us % 16 != 0)) throw new InvalidDataException("usableSectors");
+                if (usable is null && total % 16 != 0) throw new InvalidDataException("totalSectors must be a multiple of 16");
+                if (!(inner > 0 && outer > inner && outer <= 60)) throw new InvalidDataException("radii");
+                // Builds the track once to check the pitch coefficients give a sensible spiral.
+                DvdTrackGeometry.Create(inner, outer, total * 38688d * 133.3e-6, linear, quadratic, cubic);
+                list.Add(new DvdGeometry("user:" + id, "Yours: " + name, (uint)total, inner, outer, 133.3,
+                    linear, quadratic, cubic, usable is { } v ? (uint)v : null));
+            }
+            catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException
+                or ArgumentException or FormatException or KeyNotFoundException)
+            {
+                skipped.Add((string.IsNullOrWhiteSpace(id) ? "(no id)" : id) + ": " + exception.Message);
+            }
+        }
+        if (skipped.Count > 0)
+            UserPresetProblem = $"Skipped {skipped.Count} of your presets that HoloStudio3D can't use ({string.Join("; ", skipped)}).";
+        return list;
+    }
+
+    private static bool TryGet(System.Text.Json.JsonElement e, string name, out System.Text.Json.JsonElement value)
+    {
+        value = default;
+        if (e.ValueKind != System.Text.Json.JsonValueKind.Object) return false;
+        foreach (System.Text.Json.JsonProperty property in e.EnumerateObject())
+            if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase)) { value = property.Value; return true; }
+        return false;
+    }
+
+    private static string Text(System.Text.Json.JsonElement e, string name) =>
+        TryGet(e, name, out System.Text.Json.JsonElement v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
+
+    private static double Number(System.Text.Json.JsonElement e, string name) =>
+        TryGet(e, name, out System.Text.Json.JsonElement v) && v.ValueKind == System.Text.Json.JsonValueKind.Number
+            ? v.GetDouble() : throw new InvalidDataException("missing " + name);
+
+    private static double Optional(System.Text.Json.JsonElement e, string name) =>
+        TryGet(e, name, out System.Text.Json.JsonElement v) && v.ValueKind == System.Text.Json.JsonValueKind.Number ? v.GetDouble() : 0;
+
     private static DvdGeometry From(DvdDiscPresetDefinition p, string id, string name) =>
         // Disc Image Studio always generates DVDs at the standard 133.3 nm channel bit and keeps the
         // file's value only for compatibility; do the same so a preset places pictures identically.
-        new(id, name, p.TotalSectors, p.InnerRadiusMm, p.OuterRadiusMm, 133.3, p.PitchLinear, p.PitchQuadratic, p.PitchCubic);
+        new(id, name, p.TotalSectors, p.InnerRadiusMm, p.OuterRadiusMm, 133.3, p.PitchLinear, p.PitchQuadratic, p.PitchCubic,
+            p.UsableSectors);
 
     public static DvdGeometry Find(string id) => BuiltIn().FirstOrDefault(g => g.Id == id)
         ?? throw new ArgumentException($"Unknown DVD preset '{id}'. Available: {string.Join(", ", BuiltIn().Select(g => g.Id))}");
@@ -220,7 +293,7 @@ internal sealed class TestDiscLayout : IDiffractionLayout
         var lines = new List<string>
         {
             "DIFFRACTION TEST DISC - KEY",
-            $"Disc layout preset: {g.Name} ({g.Id}), {g.Sectors:N0} sectors, channel bit {g.BitNm} nm",
+            $"Disc layout preset: {g.Name} ({g.Id}), {g.SectorText}, channel bit {g.BitNm} nm",
             "",
             "Rings are numbered 1 (innermost) to 12 (outermost); numbers are printed in each reference segment.",
             "Around each ring, segments alternate every 45 degrees: test grating, then random reference.",
@@ -346,7 +419,7 @@ internal sealed class TiltImageLayout : IDiffractionLayout
         var lines = new List<string>
         {
             "TILT IMAGE DISC - KEY",
-            $"Disc layout preset: {g.Name} ({g.Id}), {g.Sectors:N0} sectors",
+            $"Disc layout preset: {g.Name} ({g.Id}), {g.SectorText}",
             "",
             "Layer  Picture                                   Grating     Lights up near (blue / green / red)",
         };

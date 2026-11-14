@@ -20,8 +20,8 @@ internal static class DiscWriter
         uint? sectorLimit = null, Reporter? reporter = null, CancellationToken cancellationToken = default)
     {
         reporter ??= Reporter.Console;
-        if (geometry.Sectors % 16 != 0) throw new ArgumentException("DVD sector count must be a multiple of 16.");
-        uint sectors = sectorLimit ?? geometry.Sectors;
+        if (geometry.OutputSectors % 16 != 0) throw new ArgumentException("DVD sector count must be a multiple of 16.");
+        uint sectors = sectorLimit ?? geometry.OutputSectors;
         string partial = output + ".partial";
         foreach (string path in new[] { output, partial }) if (File.Exists(path)) throw new IOException("Already exists: " + path);
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
@@ -54,7 +54,7 @@ internal static class DiscWriter
             {
                 reporter.Progress(1, "Verifying the finished image...");
                 using FileStream check = File.OpenRead(partial);
-                if (check.Length != (long)geometry.Sectors * 2048) throw new IOException("The image length is wrong.");
+                if (check.Length != (long)geometry.OutputSectors * 2048) throw new IOException("The image length is wrong.");
                 reporter.Log(Verify(layout, geometry, check));
             }
             File.Move(partial, output);
@@ -86,7 +86,7 @@ internal static class DiscWriter
             .Append(g.OuterMm - 1).Where(r => r > g.InnerMm + .3 && r < g.OuterMm - .3).ToArray();
         foreach (double radius in radii)
         {
-            uint start = Math.Min((uint)(track.ArcLengthAtRadius(radius) / (38688 * g.BitNm * 1e-6)) / 16 * 16, g.Sectors - 64);
+            uint start = Math.Min((uint)(track.ArcLengthAtRadius(radius) / (38688 * g.BitNm * 1e-6)) / 16 * 16, g.OutputSectors - 64);
             List<byte> expected = new(64 * 2048);
             using MemoryStream fragment = new();
             FastDispersionImageWriter.WriteScrambledCodewordPatternStream(sample =>

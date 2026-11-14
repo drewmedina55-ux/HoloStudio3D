@@ -93,6 +93,10 @@ The window has these sections in the sidebar:
   left and right picture; set your viewing distance, see the layout, then make the disc.
 - **Stage 1 · Measure discs (first time, or a new disc stack):** measures your own discs with disc-probe and installs the result as a
   preset, so pictures land straight instead of streaked. Do this once per spindle of discs.
+  **Already calibrated?** You don't need to do it again. HoloStudio3D reads the same preset file
+  as Disc Image Studio (`%LOCALAPPDATA%\DiscImageStudio\disc-presets.json`), so presets saved by
+  Disc Image Studio (this edition or the original, 1.5.0 included) or installed by disc-probe show
+  up in every disc section as "Yours: ...". Restart HoloStudio3D after adding one.
 - **Magic Eye-style picture:** live preview as you move the sliders. Drop a depth picture or 3D model
   onto the box, then *Save PNG*.
 - **Rainbow test disc:** the ring layout and key, then *Make test disc image*, with a progress bar

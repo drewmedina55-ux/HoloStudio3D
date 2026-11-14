@@ -476,6 +476,9 @@ public partial class DiscParametersState : ObservableObject
         DiscPresetJsonDocument user)
     {
         DiscPresetJsonDocument merged = DiscPresetJsonStore.Merge(builtIn, user);
+        // Presets from Disc Image Studio 1.5.0 can carry usableSectors (what can be written) next to the
+        // total (which sets the geometry). This edition has one sector count for both, so it uses the
+        // writable amount: the image then fits the disc, and the picture moves by well under 0.1 mm.
         List<CdDiscPreset> cdPresets = merged.CdPresets
             .Select(value => new CdDiscPreset(
                 value.Id,
@@ -483,7 +486,7 @@ public partial class DiscParametersState : ObservableObject
                     builtIn.CdPresets.FirstOrDefault(preset => preset.Id == value.Id)?.DisplayName),
                 LocalizeBuiltInText(value.Description,
                     builtIn.CdPresets.FirstOrDefault(preset => preset.Id == value.Id)?.Description),
-                value.Sectors,
+                value.UsableSectors ?? value.Sectors,
                 value.InnerRadiusMm,
                 value.OuterRadiusMm,
                 value.DisplayNameResourceKey,
@@ -500,7 +503,7 @@ public partial class DiscParametersState : ObservableObject
                     builtIn.DvdPresets.FirstOrDefault(preset => preset.Id == value.Id)?.DisplayName),
                 LocalizeBuiltInText(value.Description,
                     builtIn.DvdPresets.FirstOrDefault(preset => preset.Id == value.Id)?.Description),
-                value.TotalSectors,
+                value.UsableSectors ?? value.TotalSectors,
                 value.InnerRadiusMm,
                 value.OuterRadiusMm,
                 value.DisplayNameResourceKey,
@@ -519,7 +522,7 @@ public partial class DiscParametersState : ObservableObject
                     builtIn.BluRayPresets?.FirstOrDefault(preset => preset.Id == value.Id)?.DisplayName),
                 1,
                 new BluRayDiscParameters(
-                    value.TotalSectors,
+                    value.UsableSectors ?? value.TotalSectors,
                     1,
                     value.InnerRadiusMm,
                     value.OuterRadiusMm,
