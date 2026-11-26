@@ -1,0 +1,24 @@
+# Copies each version's section of RELEASE-NOTES.md onto its Release page whenever the notes change
+# (new releases get theirs from build.yml when they are published). Can also be run by hand from
+# the Actions tab.
+
+name: Update release notes
+
+on:
+  push:
+    branches: [main]
+    paths: [RELEASE-NOTES.md, .github/workflows/update-release-notes.yml, .github/scripts/update_release_notes.py]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update the Release pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/update_release_notes.py
