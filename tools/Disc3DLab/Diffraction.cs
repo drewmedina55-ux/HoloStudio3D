@@ -151,6 +151,46 @@ internal sealed record Grating(string Code, string Label, double PeriodChannelBi
 {
     public double PeriodUm(double bitNm) => PeriodChannelBits * bitNm / 1000;
 
+    /// <summary>For Ashley-QwQ's single-lobe ladder: the one delta where the pattern is bright.</summary>
+    public double? PeakDelta { get; init; }
+
+    /// <summary>Modelled brightness against delta (white LED), for her ladder and dark patterns.</summary>
+    public double[]? Curve { get; init; }
+
+    /// <summary>
+    /// Where the pattern is brightest, as delta = |(u_cam + u_lamp) . tangent| (Ashley-QwQ's measure).
+    /// For a plain grating that is the green first order: 550 nm / period.
+    /// </summary>
+    public double Delta(double bitNm = 133.3) => PeakDelta ?? 0.55 / PeriodUm(bitNm);
+
+    /// <summary>Modelled brightness at a delta, or NaN without a curve.</summary>
+    public double Brightness(double delta)
+    {
+        if (Curve == null) return double.NaN;
+        double t = Math.Clamp((delta - LadderData.CurveStart) / LadderData.CurveStep, 0, Curve.Length - 1.000001);
+        int i = (int)t;
+        return (Curve[i] + (Curve[i + 1] - Curve[i]) * (t - i)) / 10000;
+    }
+
+    private static byte[] Hex(string spec) => Convert.FromHexString(spec);
+
+    /// <summary>
+    /// Ashley-QwQ's single-lobe ladder (Disc Neo multi-view textures, 2026-11-26): ten patterns,
+    /// each bright at one narrow delta and dark elsewhere, from 0.245 to 0.52. Each is a short byte
+    /// run written over and over. The nominal period only keeps the green-angle tables sensible.
+    /// </summary>
+    public static readonly Grating[] Ladder = LadderData.Lobes.Select(l =>
+        Sequence($"L{l.Peak:0.000}".Replace("L0.", "L."), $"ladder {l.Peak:0.000} ({l.Spec})", 0.55 / (l.Peak * 0.1333), Hex(l.Spec))
+            with { PeakDelta = l.Peak, Curve = l.Curve }).ToArray();
+
+    /// <summary>Her dark backgrounds (D1-D5) and the older reference background (D6).</summary>
+    public static readonly Grating[] Darks = LadderData.Darks.Select((d, i) =>
+        Sequence($"D{i + 1}", i == LadderData.Darks.Length - 1 ? $"dark background, older ({d.Spec})" : $"dark background ({d.Spec})",
+            double.NaN, Hex(d.Spec)) with { Curve = d.Curve }).ToArray();
+
+    /// <summary>Selectivity of a ladder pattern (peak / brightest elsewhere), from her table.</summary>
+    public double Selectivity => PeakDelta is { } p ? LadderData.Lobes.First(l => l.Peak == p).Selectivity : double.NaN;
+
     /// <summary>First-order diffraction angle from the mirror reflection, for light hitting the disc straight on.</summary>
     public double AngleDegrees(double wavelengthNm, double bitNm)
     {
@@ -233,6 +273,8 @@ internal sealed record Grating(string Code, string Label, double PeriodChannelBi
     public static Grating FromCode(string code)
     {
         if (string.Equals(code, Stretch66By10.Code, StringComparison.OrdinalIgnoreCase)) return Stretch66By10;
+        Grating named = Ladder.Concat(Darks).FirstOrDefault(g => string.Equals(g.Code, code, StringComparison.OrdinalIgnoreCase));
+        if (named != null) return named;
         foreach (Grating g in TestRings) if (string.Equals(g.Code, code, StringComparison.OrdinalIgnoreCase)) return g;
         throw new ArgumentException($"Unknown grating '{code}'. Use one of: {string.Join(", ", TestRings.Select(g => g.Code))}");
     }

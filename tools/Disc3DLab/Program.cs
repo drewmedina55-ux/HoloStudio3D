@@ -96,11 +96,14 @@ internal static class Program
           --move-y MM       slide the picture up toward the rim (+) or down (-), up to 30 mm
           --copies N        repeat the picture around the disc, 1-8 (each upright when turned to the top)
           --upright-bottom  with --copies 2: keep the bottom copy upright, so both show at once
-          --off-fixed       fill "off" areas with one pattern aimed away from your eyes (better contrast?)
-          --stretch P       2 views: stretch the right view's pattern by 0, 10 or 14 percent (needs the
-                            66 right pattern) so the left eye sees less of it
-          --test-patches    make the test-patch disc (all off / left / right / both, in rows of
-                            +0 / +10 / +14 % right pattern); needs no picture
+          --patterns P      view patterns: classic (single bytes, default) or ladder (Ashley-QwQ's
+                            single-lobe ladder, experimental: each bright at one narrow angle)
+          --off-fixed       fill "off" areas with one pattern aimed away from your eyes
+          --off-dark        fill "off" areas with Ashley-QwQ's darkest background for these views
+          --stretch P       2 classic views: stretch the right view's pattern by 0, 10 or 14 percent
+                            (needs the 66 right pattern) so the left eye sees less of it
+          --test-patches    make the test-patch disc: classic / ladder / ladder + dark background,
+                            side by side on one ring; needs no picture
           --detail MM       dither cell size: 0.05 fine (default), 0.1 normal, 0.2 coarse
           --no-test         leave out the L/R test tiles at 6 o'clock
           --out, --preset, --threads   as above
@@ -217,7 +220,8 @@ internal static class Program
             OffsetXMm = o.Double("--move-x", 0),
             OffsetYMm = o.Double("--move-y", 0),
             Copies = o.Int("--copies", 1),
-            OffMode = o.Has("--off-fixed") ? "fixed" : "mix",
+            OffMode = o.Has("--off-dark") ? "dark" : o.Has("--off-fixed") ? "fixed" : "mix",
+            Patterns = o.Text("--patterns", "classic").ToLowerInvariant(),
             TestPatches = o.Has("--test-patches"),
             RightStretch = o.Int("--stretch", 0),
             UprightBottom = o.Has("--upright-bottom"),
@@ -231,6 +235,8 @@ internal static class Program
             if (pair.Length != 2) throw new ArgumentException("--pair needs two patterns, e.g. B9,92 (left,right).");
             request.PairLeft = pair[0]; request.PairRight = pair[1];
         }
+        if (request.Patterns is not ("classic" or "ladder"))
+            throw new ArgumentException("--patterns is classic or ladder.");
         if (Array.IndexOf(Grating.Stretches, request.RightStretch) < 0)
             throw new ArgumentException("--stretch is 0, 10 or 14.");
         if (!request.TestPatches && request.Mode == "two" && (request.LeftFile is null || request.RightFile is null))
@@ -285,7 +291,7 @@ internal static class Program
 /// <summary>--name value pairs; bare flags (--invert, --no-guides, --overwrite) take no value.</summary>
 internal sealed class Options
 {
-    private static readonly HashSet<string> Flags = ["--invert", "--no-guides", "--overwrite", "--squeezed", "--cross-eyed", "--swap", "--no-test", "--invert-depth", "--large", "--test-patches", "--off-fixed", "--upright-bottom"];
+    private static readonly HashSet<string> Flags = ["--invert", "--no-guides", "--overwrite", "--squeezed", "--cross-eyed", "--swap", "--no-test", "--invert-depth", "--large", "--test-patches", "--off-fixed", "--off-dark", "--upright-bottom"];
     private readonly Dictionary<string, string> _values = new(StringComparer.Ordinal);
 
     public static Options Parse(IEnumerable<string> arguments)

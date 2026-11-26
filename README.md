@@ -230,6 +230,8 @@ HoloStudio3D wouldn't exist without these two projects and their authors:
 - **[Ashley-QwQ](https://github.com/Ashley-QwQ)**, author of
   **[disc-probe](https://github.com/Ashley-QwQ/disc-probe)**, which measures your drive and discs
   in Stage 1 so pictures land where they should.
+  Her single-lobe ladder and dark background patterns (Disc Neo multi-view textures) power the
+  experimental Ladder patterns in Hologram mode.
 
 Thank you both for sharing your work as open source.
 

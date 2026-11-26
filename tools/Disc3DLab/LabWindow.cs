@@ -476,6 +476,7 @@ namespace Disc3DLab
         private CheckBox _pairUpright;
         private Segmented _pairOff;
         private Segmented _pairStretch;
+        private Segmented _pairPatterns;
         private LabButton _pairPatches;
         private string _pairModelFile;
         private string[] _pairFrameFiles;
@@ -1717,15 +1718,20 @@ namespace Disc3DLab
             _pairTest = Add(col, new CheckBox { Text = "Add L/R test tiles at 6 o'clock", Checked = true, ForeColor = Theme.Text, Height = 26 });
             _pairTest.CheckedChanged += (s, e) => QueuePair();
 
+            Section(col, "View patterns");
+            _pairPatterns = Add(col, new Segmented(("classic", "Classic"), ("ladder", "Ladder (experimental)")), 0, 4);
+            _pairPatterns.Changed += (s, e) => QueuePair();
+            Hint(col, "Classic uses one repeated byte per view; each spreads its light into a rainbow over a range of angles. Ladder uses Ashley-QwQ's new single-lobe patterns: each is bright at one narrow angle and dark elsewhere, so each eye should see less of the other eye's view. They are model predictions checked on DVD-R, not yet photographed one by one: burn the test-patch disc below to compare both on your discs. The key file says where to put the lamp for either.");
+
             Section(col, "Right view pattern");
             _pairStretch = Add(col, new Segmented(("0", "+0% (as before)"), ("10", "+10%"), ("14", "+14%")), 0, 4);
             _pairStretch.Changed += (s, e) => QueuePair();
-            Hint(col, "Experimental, from Ashley-QwQ's test-patch photos: the right view leaked into the left eye as red. A longer pattern moves its colours toward red, so at the left eye it slips into infrared and vanishes, while the right eye sees yellow instead of green. Works with 2 views and the 66 right pattern (the usual pair). Burn the test-patch disc below to see which one works best for you.");
+            Hint(col, "Experimental, classic patterns only, from Ashley-QwQ's test-patch photos: the right view leaked into the left eye as red. A longer pattern moves its colours toward red, so at the left eye it slips into infrared and vanishes, while the right eye sees yellow instead of green. Works with 2 views and the 66 right pattern (the usual pair).");
 
             Section(col, "Off areas");
-            _pairOff = Add(col, new Segmented(("mix", "Random mix"), ("fixed", "Fixed, aimed away")), 0, 4);
+            _pairOff = Add(col, new Segmented(("mix", "Random mix"), ("dark", "Dark"), ("fixed", "Fixed, aimed away")), 0, 4);
             _pairOff.Changed += (s, e) => QueuePair();
-            Hint(col, "What fills the dark parts of the picture. Random mix is the original, and the one to use: Fixed (experimental) sends its light away from your eyes, but in Ashley-QwQ's photos it wasn't darker.");
+            Hint(col, "What fills the dark parts of the picture. Random mix is the original; it is made of the same patterns as the views, so it lights up a little where they do. Dark (experimental) uses Ashley-QwQ's dark backgrounds, picking the one that stays dimmest where your views light up. Fixed (experimental) sends its light away from your eyes, but in her photos it wasn't darker.");
 
             Section(col, "Your DVD");
             Add(col, PresetCombo(), 0, 4);
@@ -1738,7 +1744,7 @@ namespace Disc3DLab
             Hint(col, "All the views it builds are saved next to the .iso as -views.png (left-most first) so you can check them. View with one small light off to the SIDE. Close one eye, then the other: each should see its own view.");
             _pairPatches = Add(col, new LabButton("Make test-patch disc  (no picture needed)") { Height = 36 }, 4, 4);
             _pairPatches.Click += (s, e) => StartJob("patches");
-            Hint(col, "Twelve matched patches (all off / left only / right only / both on) in three rows: the right view's pattern at +0%, +10% and +14%, side by side. Photograph from both eye positions with the lamp fixed to see which stretch stops the leak. Uses the viewing distance, pattern pair and DVD above; the key says how.");
+            Hint(col, "Twelve matched patches (all off / left only / right only / both on) on one ring, comparing classic patterns, Ashley-QwQ's ladder patterns, and the ladder with a dark background, side by side at the same angles. Photograph from both eye positions with the lamp where the key says. Uses the viewing distance and DVD above.");
 
             _pairPicture = Picture();
             _pairKey = KeyBox();
@@ -1835,6 +1841,7 @@ namespace Disc3DLab
                 OffsetXMm = _pairMoveX.Value, OffsetYMm = _pairMoveY.Value,
                 Copies = int.Parse(_pairCopies.Value, CultureInfo.InvariantCulture), UprightBottom = _pairUpright.Checked,
                 OffMode = _pairOff.Value,
+                Patterns = _pairPatterns.Value,
                 RightStretch = int.Parse(_pairStretch.Value, CultureInfo.InvariantCulture),
                 CellMm = double.Parse(_pairDetail.Value, System.Globalization.CultureInfo.InvariantCulture),
                 TestStrips = _pairTest.Checked, Preset = Preset,
@@ -1888,7 +1895,7 @@ namespace Disc3DLab
 
         // ───────────── about page ─────────────
 
-        internal const string AppVersion = "v1.08";
+        internal const string AppVersion = "v1.09";
         internal const string WebsiteUrl = "https://drewmedina.com";
         internal const string DisRepoUrl = "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio";
         internal const string ProbeRepoUrl = "https://github.com/Ashley-QwQ/disc-probe";
@@ -1961,6 +1968,7 @@ namespace Disc3DLab
             H("disc-probe  (Stage 1)");
             P("Stage 1's disc measuring is disc-probe by Ashley-QwQ, bundled unmodified and run through a small launcher, with a private copy of Python, NumPy, SciPy and Pillow.");
             Link("github.com/Ashley-QwQ/disc-probe", ProbeRepoUrl);
+            P("Hologram mode's Ladder patterns and Dark off areas are Ashley-QwQ's Disc Neo multi-view textures (2026-11-26, GPL-3.0): model predictions, checked on DVD-R.");
 
             H("Extra samples");
             P("Extra samples by Sliicy: stereograms and test-disc results (keys and maps) in the samples\\Sliicy folder. Thanks for the testing and feedback!");

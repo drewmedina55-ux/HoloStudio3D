@@ -3,6 +3,20 @@
 What changed in each version of HoloStudio3D. Every release is the full app: download the newest
 one and replace your old `HoloStudio3D-App` folder. Your settings and presets are kept.
 
+## v1.09 (2026-11-26)
+
+- **New, experimental: "View patterns: Ladder"** in Hologram mode. Uses Ashley-QwQ's new
+  single-lobe patterns (Disc Neo multi-view textures), each bright at one narrow angle and dark
+  elsewhere, so each eye should see less of the other eye's view. Works with 2 to 7 views.
+- **New, experimental: "Off areas: Dark".** Fills the dark parts of the picture with Ashley-QwQ's
+  dark backgrounds, picking the one that stays dimmest where your views light up.
+- **Every key file now says where to put the lamp,** worked out from the viewing distance. That
+  should also help when you see no colour.
+- **New test-patch disc:** classic patterns, ladder patterns, and ladder with a dark background,
+  side by side on one ring, so one burn shows which works best on your discs.
+- The ladder patterns are model predictions, checked on DVD-R but not yet photographed one by
+  one, so burn the test-patch disc first.
+
 ## v1.08 (2026-11-26)
 
 - **Fixed:** the app could crash with "1049 (0x0419) is an invalid culture identifier" (or a

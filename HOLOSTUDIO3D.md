@@ -227,24 +227,34 @@ image at one eye.
   or `--detail MM`. Grays are spread with error diffusion, separately for each view's own cells, so
   every view keeps the same gray level (before v1.02 a mid-gray could come out much brighter for
   one eye than the other). If a Fine burn looks faint or washed out, try Normal.
-- **Right view pattern** (`--stretch 0|10|14`, experimental, 2 views): Ashley-QwQ's test-patch
-  photos showed the right view leaking into the left eye as red. Stretching the right view's
-  pattern (a longer period) moves all its colours toward red, so at the left eye it slips past red
-  into infrared and vanishes, while the right eye sees it shift only from green toward yellow.
-  *+14%* is the clean pattern CE; *+10%* is an 11-byte run that repeats every 8.8 channel bits (no
-  single byte gives that period), chosen by searching the EFMPlus table for the cleanest one. Both
-  need the 66 right pattern (the usual pair, A5 / 66); with any other pair the setting is ignored
-  and the key says so.
-- **Off areas:** what fills the dark parts of the picture. *Random mix* is the original texture and
-  the recommended one. *Fixed, aimed away* (`--off-fixed`, experimental) fills them with one pattern
-  (92, about 15°) that sends its light away from both eyes; in Ashley-QwQ's photos it wasn't darker.
-- **Test-patch disc** (`--test-patches`): twelve matched 6 mm patches at 12 o'clock in three rows.
-  Each row is all off, left only, right only, both on; the rows differ only in the right view's
-  pattern: +0% (outer), +10% and +14% (inner). Plus the L/R tiles. Fix the disc and the lamp (keep
-  the lamp in exactly the same place for every photo), photograph from where each eye would be with
-  the same exposure, and compare: the best row is the one where *right only* is darkest from the
-  left eye while it still shows from the right eye. The key file explains what to look for.
-  Suggested by Ashley-QwQ, disc-probe's author.
+- **View patterns** (`--patterns classic|ladder`): *Classic* gives each view one repeated byte;
+  each spreads its light into a rainbow over a range of angles. *Ladder* (experimental) uses
+  Ashley-QwQ's single-lobe ladder from her Disc Neo multi-view textures (2026-11-26): ten patterns,
+  each bright at one narrow angle and dark elsewhere, so each eye should catch less of the other
+  eye's view. The app picks the steps whose peaks are one eye spacing apart with the least modelled
+  leak (for 3 to 7 views, evenly stepped ones). They are model predictions checked on DVD-R, not yet
+  photographed one by one, so burn the test-patch disc first.
+- **Right view pattern** (`--stretch 0|10|14`, experimental, 2 classic views): Ashley-QwQ's
+  test-patch photos showed the right view leaking into the left eye as red. Stretching the right
+  view's pattern moves its colours toward red, so at the left eye it slips into infrared. *+14%* is
+  the clean pattern CE; *+10%* is an 11-byte run with an 8.8 channel-bit period. Both need the 66
+  right pattern (the usual pair, A5 / 66).
+- **Off areas:** what fills the dark parts of the picture. *Random mix* is the original texture; it
+  is made of the same patterns as the views, so it lights up a little where they do. *Dark*
+  (`--off-dark`, experimental) uses Ashley-QwQ's dark backgrounds, picking the one that stays
+  dimmest where your views light up (her new ones beat the older one only at its brightest points).
+  *Fixed, aimed away* (`--off-fixed`, experimental) uses one pattern aimed away from both eyes; in
+  her photos it wasn't darker.
+- **Lamp position:** every key file now says where to put the lamp. Following Ashley-QwQ, each
+  pattern lights up at one δ = |(û_cam + û_lamp) · t| (unit vectors from the spot on the disc to the
+  camera and to the lamp, t the track direction), so the angle depends on the lamp as well as on
+  your eyes. The lamp sets the middle; your eyes sit either side of it.
+- **Test-patch disc** (`--test-patches`): twelve matched 3 mm patches on one ring at 12 o'clock,
+  comparing three variants at the same angles: classic patterns (the nearest single bytes), the
+  ladder pair with the random mix, and the ladder pair with a dark background. Each kind (all off,
+  left only, right only, both on) has its three variants side by side, as Ashley-QwQ suggested, so
+  the position on the disc doesn't mix in. Put the lamp where the key says, photograph from where
+  each eye would be with the same exposure, and compare. Plus the L/R tiles.
 - **Viewing:** picture at the top, about your chosen distance away, with one small light off to
   the side (not between your eyes). With more than 2 views, move your head slowly left and right.
   If the depth looks inside-out, tick *Swap eyes*.

@@ -22,9 +22,12 @@ internal sealed class StereoPairLayout : IDiffractionLayout
     private readonly bool _uprightBottom;
     private readonly int _off;          // grating index used for "off" cells
     private readonly bool _offFixed;    // off cells use one fixed pattern aimed away from the eyes
+    private readonly bool _offDark;     // off cells use one of Ashley-QwQ's dark backgrounds
     private readonly Grating _offGrating;
-    private readonly List<(double X, double Y, int Kind, int Row, int Number)> _patches; // test-patch disc
-    private readonly int[] _patchRight;          // right-view pattern of each patch row: +0 / +10 / +14 %
+    private readonly bool _ladder;      // views use Ashley-QwQ's single-lobe ladder
+    private readonly List<(double Angle, int Kind, int Variant, int Number)> _patches; // test-patch disc
+    private readonly (string Name, int Left, int Right, int Off)[] _variants;          // its three variants
+    private const double PatchRing = 50, PatchWidth = 3, PatchHalfHeight = 3.5;
     private readonly int _stretch;               // right-view stretch actually used, percent
     private readonly int _stretchAsked;
 
@@ -45,21 +48,23 @@ internal sealed class StereoPairLayout : IDiffractionLayout
     private readonly LabelMask _labels = new();
     private readonly int _labelInk, _labelPaper;
     private readonly bool _testTiles;
-    private readonly double _patchSize;
 
     public StereoPairLayout(StereoPairRequest r)
     {
         DistanceCm = r.DistanceCm;
         _testTiles = r.TestStrips || r.TestPatches;
+        // The test-patch disc always compares the ladder with the classic patterns at the same angles.
+        _ladder = r.Patterns == "ladder" || r.TestPatches;
         if (r.TestPatches)
         {
-            (Grating left, Grating right) = ChoosePair(r);
+            (Grating left, Grating right) = LadderPair(r.DistanceCm, r.SwapEyes);
             Views = [left, right];
         }
         else Views = ChooseViews(r);
         _n = Views.Length;
-        _stretch = _n == 2 && !r.TestPatches && Grating.Stretched(ChoosePair(r).Right, r.RightStretch) != null ? r.RightStretch : 0;
-        _stretchAsked = _n == 2 && !r.TestPatches ? r.RightStretch : 0;
+        bool classicPair = _n == 2 && !r.TestPatches && r.Patterns != "ladder";
+        _stretch = classicPair && Grating.Stretched(ChoosePair(r).Right, r.RightStretch) != null ? r.RightStretch : 0;
+        _stretchAsked = classicPair ? r.RightStretch : 0;
         PairLeft = Views[0]; PairRight = Views[^1];
         // Spread the views evenly: neighbouring cells in a row always belong to different views.
         _stride = _n == 2 ? 1 : _n >= 4 ? 2 : 1;
@@ -121,45 +126,45 @@ internal sealed class StereoPairLayout : IDiffractionLayout
         // "Off" cells: the random mix (still contains the view patterns, so it isn't truly dark for
         // the eyes), or one fixed pattern aimed well away from every view (Ashley-QwQ's suggestion:
         // 92, or the clean pattern farthest from the views if a view already uses 92).
-        _offGrating = FixedOff(Views);
-        _offFixed = r.OffMode == "fixed";
+        _offFixed = r.OffMode == "fixed" && !r.TestPatches;
+        _offDark = r.OffMode == "dark" && !r.TestPatches;
+        // Dark: Ashley-QwQ's dark background that stays dimmest where the views light up.
+        _offGrating = _offDark ? DarkOff(Views) : FixedOff(Views);
         _off = _random;
-        if (_offFixed && !r.TestPatches)
+        if (_offFixed || _offDark)
         {
             gratings.Add(_offGrating);
             _off = gratings.Count - 1;
         }
         if (r.TestPatches)
         {
-            // Matched patches: all off / left only / right only / both on, in three rows that differ only
-            // in the right view's pattern: +0 % (outer), +10 % and +14 % (inner), all with the random-mix
-            // off texture (Ashley-QwQ: the fixed off pattern wasn't darker).
-            _patchRight = new int[Grating.Stretches.Length];
-            for (int row = 0; row < _patchRight.Length; row++)
-            {
-                Grating stretched = Grating.Stretched(PairRight, Grating.Stretches[row]);
-                if (stretched == null || row == 0) { _patchRight[row] = 1; continue; }
-                gratings.Add(stretched);
-                _patchRight[row] = gratings.Count - 1;
-            }
+            // Three variants at the same two deltas (so one lamp position suits all of them): the classic
+            // single-byte patterns nearest to the ladder pair, the ladder pair with the random mix, and the
+            // ladder pair with a dark background. Following Ashley-QwQ's tip, every patch sits on ONE ring
+            // (so the position on the disc doesn't mix in), and the variants of each kind sit side by side.
+            Grating classicLeft = NearestClassic(Views[0], null), classicRight = NearestClassic(Views[1], classicLeft);
+            gratings.Add(classicLeft); int cl = gratings.Count - 1;
+            gratings.Add(classicRight); int cr = gratings.Count - 1;
+            gratings.Add(DarkOff(Views)); int dark = gratings.Count - 1;
+            _variants =
+            [
+                ("classic", cl, cr, _random),
+                ("ladder", 0, 1, _random),
+                ("ladder + dark", 0, 1, dark),
+            ];
             _patches = [];
-            const double size = 6, gap = 2, rowPitch = 9;
-            double rowWidth = 4 * size + 3 * gap;
-            for (int row = 0; row < _patchRight.Length; row++)
+            const double gapIn = .6, gapOut = 1.8;
+            double total = 12 * PatchWidth + 8 * gapIn + 3 * gapOut, s0 = -total / 2;
             for (int k = 0; k < 4; k++)
+            for (int v = 0; v < 3; v++)
             {
-                double cx0 = -rowWidth / 2 + k * (size + gap) + size / 2;
-                double cy0 = -50 + row * rowPitch;
-                _patches.Add((cx0, cy0, k, row, row * 4 + k + 1));
+                double centre = s0 + PatchWidth / 2;
+                _patches.Add((centre / PatchRing, k, v, k * 3 + v + 1));
+                s0 += PatchWidth + (v < 2 ? gapIn : gapOut);
             }
-            _patchSize = size;
-            foreach ((double px0, double py0, int _, int _, int number) in _patches)
-            {
-                double angle = Math.Atan2(px0, -py0), radius = Math.Sqrt(px0 * px0 + py0 * py0);
-                // Each number sits just outside its patch (toward the rim), in the gap between rows.
+            foreach ((double angle, int _, int _, int number) in _patches)
                 _labels.Draw(number.ToString(System.Globalization.CultureInfo.InvariantCulture), angle,
-                    radius + size / 2 + 1.3, .18);
-            }
+                    PatchRing + PatchHalfHeight + 1.3, .18);
         }
         if (_testTiles)
         {
@@ -205,6 +210,117 @@ internal sealed class StereoPairLayout : IDiffractionLayout
 
     private static double Green(string code) => Grating.FromCode(code).AngleDegrees(550, 133.3);
 
+    /// <summary>
+    /// How far apart your eyes are in delta (Ashley-QwQ's measure, |(u_cam + u_lamp) . tangent|), for a
+    /// spot straight in front of you: the lamp adds the same amount to both eyes, so only the eyes count.
+    /// </summary>
+    public static double EyeDelta(double distanceCm)
+    {
+        double half = EyeSeparationCm / 2, d = Math.Max(10, distanceCm);
+        return 2 * half / Math.Sqrt(half * half + d * d);
+    }
+
+    /// <summary>How far apart two view patterns are, in eye spacings (1 = exactly your two eyes).</summary>
+    private static double EyeSpacings(Grating a, Grating b, double distanceCm) =>
+        a.PeakDelta != null || b.PeakDelta != null
+            ? Math.Abs(a.Delta() - b.Delta()) / EyeDelta(distanceCm)
+            : Math.Abs(a.AngleDegrees(550, 133.3) - b.AngleDegrees(550, 133.3)) / TargetSeparation(distanceCm);
+
+    /// <summary>
+    /// The ladder pair for your eyes: two steps whose peaks are one eye spacing apart, with the least
+    /// modelled leak (each pattern's brightness at the other eye's delta, relative to its own).
+    /// Left eye gets the larger delta, like the classic pairs.
+    /// </summary>
+    public static (Grating Left, Grating Right) LadderPair(double distanceCm, bool swap)
+    {
+        double eye = EyeDelta(distanceCm);
+        var best = Grating.Ladder.SelectMany(a => Grating.Ladder, (a, b) => (a, b))
+            .Where(p => p.a.Delta() > p.b.Delta())
+            .OrderBy(p => Math.Abs(p.a.Delta() - p.b.Delta() - eye) / eye + Leak(p.a, p.b))
+            .First();
+        return swap ? (best.b, best.a) : (best.a, best.b);
+    }
+
+    /// <summary>Modelled leak of a ladder pair: how bright each pattern is at the other one's peak.</summary>
+    internal static double Leak(Grating left, Grating right) =>
+        right.Brightness(left.Delta()) / left.Brightness(left.Delta()) + left.Brightness(right.Delta()) / right.Brightness(right.Delta());
+
+    /// <summary>Ladder views for 3-7 views: evenly stepped, so your eyes land 1-3 views apart.</summary>
+    private static Grating[] LadderViews(int n, double distanceCm)
+    {
+        double eye = EyeDelta(distanceCm);
+        Grating[] high = Grating.Ladder.OrderByDescending(g => g.Delta()).ToArray();
+        Grating[] best = null;
+        double bestScore = double.MaxValue;
+        foreach (int[] pick in Combinations(high.Length, n))
+        {
+            Grating[] views = pick.Select(i => high[i]).ToArray();
+            double[] gaps = Enumerable.Range(0, n - 1).Select(i => views[i].Delta() - views[i + 1].Delta()).ToArray();
+            for (int stride = 1; stride <= 3; stride++)
+            {
+                double target = eye / stride;
+                double score = gaps.Sum(g => Math.Abs(g - target)) / target / (n - 1)
+                    + views.Sum(v => 1 - Math.Min(1, v.Selectivity / 13)) / n * .5;
+                if (score < bestScore) { bestScore = score; best = views; }
+            }
+        }
+        return best;
+    }
+
+    private static IEnumerable<int[]> Combinations(int count, int k)
+    {
+        int[] pick = Enumerable.Range(0, k).ToArray();
+        while (true)
+        {
+            yield return (int[])pick.Clone();
+            int i = k - 1;
+            while (i >= 0 && pick[i] == count - k + i) i--;
+            if (i < 0) yield break;
+            pick[i]++;
+            for (int j = i + 1; j < k; j++) pick[j] = pick[j - 1] + 1;
+        }
+    }
+
+    /// <summary>The classic single-byte pattern whose green delta is closest to this one.</summary>
+    private static Grating NearestClassic(Grating near, Grating not) =>
+        Clean.Select(Grating.FromCode).Where(g => not == null || g.Code != not.Code)
+            .OrderBy(g => Math.Abs(g.Delta() - near.Delta())).First();
+
+    /// <summary>
+    /// Ashley-QwQ's dark background that stays dimmest where the views light up (her new ones beat the
+    /// older one only at its brightest points, so this is picked per disc, not fixed).
+    /// </summary>
+    internal static Grating DarkOff(Grating[] views)
+    {
+        IEnumerable<double> Deltas(Grating v) => v.PeakDelta != null
+            ? [v.Delta() - .03, v.Delta(), v.Delta() + .03]
+            : [v.Delta() * .82, v.Delta(), v.Delta() * 1.18]; // classic: blue to red
+        double[] spots = views.SelectMany(Deltas).ToArray();
+        return Grating.Darks.OrderBy(d => spots.Max(d.Brightness)).First();
+    }
+
+    /// <summary>
+    /// Where to put the lamp so the views land on your eyes (Ashley-QwQ's measure: each pattern lights
+    /// up at one delta = |(u_cam + u_lamp) . tangent|, which depends on the lamp as well as the eye).
+    /// </summary>
+    internal static string[] LampLines(Grating[] views, double distanceCm)
+    {
+        double first = views[0].Delta(), last = views[^1].Delta(), lamp = (first + last) / 2;
+        if (lamp >= .95) return [];
+        string side = first > last ? "left" : "right";
+        double d = Math.Max(10, distanceCm), aside = d * lamp / Math.Sqrt(1 - lamp * lamp);
+        double degrees = Math.Asin(lamp) * 180 / Math.PI;
+        bool classic = views.All(v => v.PeakDelta == null);
+        return
+        [
+            $"LAMP: on your {side.ToUpperInvariant()}, at eye height, about {d:0} cm from the disc and {aside:0} cm to the {side} of the line",
+            $"from the disc to your nose (about {degrees:0} deg off that line; farther away along the same direction is fine).",
+            classic ? "  (Worked out for green light: the classic patterns spread into a rainbow, so tilt a little to see colours.)"
+                    : $"  (Worked out from Ashley-QwQ's model: delta {lamp:0.000} from the lamp, plus or minus {EyeDelta(d) / 2:0.000} for each eye.)",
+            $"  If the views come out swapped, move the lamp to the other side.",
+        ];
+    }
+
     /// <summary>How many views a request makes.</summary>
     public static int ViewCount(StereoPairRequest r)
     {
@@ -227,6 +343,10 @@ internal sealed class StereoPairLayout : IDiffractionLayout
         {
             left = Grating.FromCode(r.PairLeft);
             right = Grating.FromCode(r.PairRight);
+        }
+        else if (r.Patterns == "ladder")
+        {
+            return LadderPair(r.DistanceCm, r.SwapEyes);
         }
         else
         {
@@ -253,7 +373,13 @@ internal sealed class StereoPairLayout : IDiffractionLayout
         if (n == 2)
         {
             (Grating left, Grating right) = ChoosePair(r);
-            return [left, Grating.Stretched(right, r.RightStretch) ?? right];
+            return r.Patterns == "ladder" ? [left, right] : [left, Grating.Stretched(right, r.RightStretch) ?? right];
+        }
+        if (r.Patterns == "ladder")
+        {
+            Grating[] ladder = LadderViews(n, r.DistanceCm);
+            if (r.SwapEyes) Array.Reverse(ladder);
+            return ladder;
         }
         double target = TargetSeparation(r.DistanceCm);
         string[] steepFirst = Clean.OrderByDescending(Green).ToArray();
@@ -278,8 +404,7 @@ internal sealed class StereoPairLayout : IDiffractionLayout
     {
         int n = views.Length;
         if (n == 2) return [-.5, .5];
-        double target = TargetSeparation(r.DistanceCm);
-        double step = Math.Abs(views[0].AngleDegrees(550, 133.3) - views[^1].AngleDegrees(550, 133.3)) / (n - 1) / target;
+        double step = EyeSpacings(views[0], views[^1], r.DistanceCm) / (n - 1);
         return Enumerable.Range(0, n).Select(i => (i - (n - 1) / 2.0) * step).ToArray();
     }
 
@@ -319,7 +444,7 @@ internal sealed class StereoPairLayout : IDiffractionLayout
             int view = ((ix + _stride * iy) % _n + _n) % _n; // 2 views: a checkerboard
             return _views[view][iy * _nx + ix] ? view : _off;
         }
-        return _offFixed ? _off : _random;
+        return _offFixed || _offDark ? _off : _random;
     }
 
     /// <summary>
@@ -340,11 +465,14 @@ internal sealed class StereoPairLayout : IDiffractionLayout
     {
         int cx = (int)Math.Floor((x + 60) / _cell), cy = (int)Math.Floor((y + 60) / _cell);
         bool leftCell = ((cx + cy) & 1) == 0;
-        foreach ((double px0, double py0, int kind, int row, int _) in _patches)
+        double radius = Math.Sqrt(x * x + y * y), angle = Math.Atan2(x, -y); // clockwise from 12 o'clock
+        if (Math.Abs(radius - PatchRing) > PatchHalfHeight) return _random;
+        foreach ((double a0, int kind, int variant, int _) in _patches)
         {
-            if (Math.Abs(x - px0) > _patchSize / 2 || Math.Abs(y - py0) > _patchSize / 2) continue;
+            if (Math.Abs((angle - a0) * PatchRing) > PatchWidth / 2) continue;
+            (string _, int left, int right, int off) = _variants[variant];
             bool on = kind == 3 || (kind == 1 && leftCell) || (kind == 2 && !leftCell);
-            return on ? (leftCell ? 0 : _patchRight[row]) : _random;
+            return on ? (leftCell ? left : right) : off;
         }
         return _random;
     }
@@ -377,24 +505,52 @@ internal sealed class StereoPairLayout : IDiffractionLayout
     {
         Grating[] views = ChooseViews(r);
         double target = TargetSeparation(r.DistanceCm);
+        string lamp = Lamp(views, r.DistanceCm);
+        if (r.Patterns == "ladder")
+        {
+            double eye = EyeDelta(r.DistanceCm);
+            if (views.Length == 2)
+                return $"Ladder: left eye {views[0].Code}, right eye {views[1].Code}  ·  {Math.Abs(views[0].Delta() - views[1].Delta()):0.000} apart in delta; " +
+                       $"your eyes are {eye:0.000} apart at {r.DistanceCm:0} cm  ·  modelled leak {Leak(views[0], views[1]) * 50:0}% per eye{lamp}";
+            double gap = Math.Abs(views[0].Delta() - views[^1].Delta()) / (views.Length - 1);
+            return $"Ladder, {views.Length} views, left to right: {string.Join(" ", views.Select(v => v.Code))}  ·  ~{gap:0.000} between views; " +
+                   $"your eyes are {eye:0.000} apart, so each eye sees about {Math.Max(1, Math.Round(eye / gap)):0} view(s) over from the other{lamp}";
+        }
         if (views.Length == 2)
         {
             double l = views[0].AngleDegrees(550, 133.3), rr = views[1].AngleDegrees(550, 133.3);
             string stretch = r.RightStretch == 0 ? "" : views[1].Code != ChoosePair(r).Right.Code
                 ? $" (stretched +{r.RightStretch}%)" : $" (+{r.RightStretch}% needs the 66 right pattern: not applied)";
             return $"Left eye {views[0].Code} (~{l:0.0}°)  ·  right eye {views[1].Code}{stretch} (~{rr:0.0}°)  ·  {Math.Abs(l - rr):0.0}° apart; " +
-                   $"your eyes are ~{target:0.0}° apart at {r.DistanceCm:0} cm";
+                   $"your eyes are ~{target:0.0}° apart at {r.DistanceCm:0} cm{lamp}";
         }
         double step = Math.Abs(views[0].AngleDegrees(550, 133.3) - views[^1].AngleDegrees(550, 133.3)) / (views.Length - 1);
         return $"{views.Length} views, left to right: {string.Join(" ", views.Select(v => v.Code))}  ·  ~{step:0.0}° between views; " +
-               $"your eyes are ~{target:0.0}° apart at {r.DistanceCm:0} cm, so each eye sees about {Math.Max(1, Math.Round(target / step)):0} view(s) over from the other";
+               $"your eyes are ~{target:0.0}° apart at {r.DistanceCm:0} cm, so each eye sees about {Math.Max(1, Math.Round(target / step)):0} view(s) over from the other{lamp}";
+    }
+
+    /// <summary>The lamp position in a few words, for the window's summary line.</summary>
+    private static string Lamp(Grating[] views, double distanceCm)
+    {
+        double first = views[0].Delta(), last = views[^1].Delta(), lamp = (first + last) / 2;
+        if (lamp >= .95) return "";
+        double d = Math.Max(10, distanceCm), aside = d * lamp / Math.Sqrt(1 - lamp * lamp);
+        return $"  ·  lamp on your {(first > last ? "left" : "right")}, ~{aside:0} cm to the side at {d:0} cm";
+    }
+
+    /// <summary>What a view pattern does, for the key file.</summary>
+    private static string PatternText(Grating gr, double bitNm)
+    {
+        if (gr.PeakDelta is { } peak)
+            return $"one bright lobe at delta {peak:0.000} (selectivity {gr.Selectivity:0.0}, {gr.Label})";
+        string angles = string.Join(" / ", new[] { 450.0, 550, 650 }.Select(w => gr.AngleDegrees(w, bitNm)).Select(a => double.IsNaN(a) ? "--" : $"{a:0.0}"));
+        return $"angles {angles} deg (blue/green/red), delta {gr.Delta(bitNm):0.000} for green";
     }
 
     public string Describe(DvdGeometry g)
     {
         if (_patches != null) return DescribePatches(g);
         double target = TargetSeparation(DistanceCm);
-        string A(Grating gr) => string.Join(" / ", new[] { 450.0, 550, 650 }.Select(w => gr.AngleDegrees(w, g.BitNm)).Select(a => double.IsNaN(a) ? "--" : $"{a:0.0}"));
         var lines = new List<string>
         {
             "HOLOGRAM DISC - KEY",
@@ -403,9 +559,16 @@ internal sealed class StereoPairLayout : IDiffractionLayout
         };
         if (_n == 2)
         {
-            lines.Add($"Left eye : {Names[0],-36} pattern {PairLeft.Code,-4} angles {A(PairLeft)} deg (blue/green/red)");
-            lines.Add($"Right eye: {Names[1],-36} pattern {PairRight.Code,-4} angles {A(PairRight)} deg");
-            lines.Add($"Pattern separation {Math.Abs(PairLeft.AngleDegrees(550, g.BitNm) - PairRight.AngleDegrees(550, g.BitNm)):0.0} deg (green); your eyes are ~{target:0.0} deg apart at {DistanceCm:0} cm.");
+            lines.Add($"Left eye : {Names[0],-36} pattern {PairLeft.Code,-6} {PatternText(PairLeft, g.BitNm)}");
+            lines.Add($"Right eye: {Names[1],-36} pattern {PairRight.Code,-6} {PatternText(PairRight, g.BitNm)}");
+            if (_ladder)
+            {
+                lines.Add($"Pattern separation {Math.Abs(PairLeft.Delta() - PairRight.Delta()):0.000} in delta; your eyes are {EyeDelta(DistanceCm):0.000} apart at {DistanceCm:0} cm.");
+                lines.Add($"Modelled leak: the right view is {PairRight.Brightness(PairLeft.Delta()) / PairLeft.Brightness(PairLeft.Delta()) * 100:0}% as bright as the left view at the left eye, " +
+                          $"the left view {PairLeft.Brightness(PairRight.Delta()) / PairRight.Brightness(PairRight.Delta()) * 100:0}% at the right eye.");
+            }
+            else
+                lines.Add($"Pattern separation {Math.Abs(PairLeft.AngleDegrees(550, g.BitNm) - PairRight.AngleDegrees(550, g.BitNm)):0.0} deg (green); your eyes are ~{target:0.0} deg apart at {DistanceCm:0} cm.");
             if (_stretch != 0)
                 lines.Add($"Right view stretched +{_stretch}% ({PairRight.Label}): its colours shift toward red, so the left eye sees less of it.");
             else if (_stretchAsked != 0)
@@ -414,9 +577,14 @@ internal sealed class StereoPairLayout : IDiffractionLayout
         else
         {
             for (int i = 0; i < _n; i++)
-                lines.Add($"View {i + 1}{(i == 0 ? " (left-most)" : i == _n - 1 ? " (right-most)" : "")}".PadRight(22) + $"{Names[i],-34} pattern {Views[i].Code,-4} angles {A(Views[i])} deg");
-            double step = Math.Abs(Views[0].AngleDegrees(550, g.BitNm) - Views[^1].AngleDegrees(550, g.BitNm)) / (_n - 1);
-            lines.Add($"~{step:0.0} deg (green) between neighbouring views; your eyes are ~{target:0.0} deg apart at {DistanceCm:0} cm.");
+                lines.Add($"View {i + 1}{(i == 0 ? " (left-most)" : i == _n - 1 ? " (right-most)" : "")}".PadRight(22) + $"{Names[i],-34} pattern {Views[i].Code,-6} {PatternText(Views[i], g.BitNm)}");
+            if (_ladder)
+                lines.Add($"~{Math.Abs(Views[0].Delta() - Views[^1].Delta()) / (_n - 1):0.000} in delta between neighbouring views; your eyes are {EyeDelta(DistanceCm):0.000} apart at {DistanceCm:0} cm.");
+            else
+            {
+                double step = Math.Abs(Views[0].AngleDegrees(550, g.BitNm) - Views[^1].AngleDegrees(550, g.BitNm)) / (_n - 1);
+                lines.Add($"~{step:0.0} deg (green) between neighbouring views; your eyes are ~{target:0.0} deg apart at {DistanceCm:0} cm.");
+            }
             lines.Add($"Each view gets 1/{_n} of the dots, so it is dimmer than a 2-view disc.");
         }
         string moved = _offsetX == 0 && _offsetY == 0 ? "" :
@@ -425,7 +593,10 @@ internal sealed class StereoPairLayout : IDiffractionLayout
             : $", {_copies} copies around the disc (each upright when turned to the top)";
         lines.Add(_offFixed
             ? $"Off areas: fixed pattern {_offGrating.Code} (~{_offGrating.AngleDegrees(550, g.BitNm):0.0} deg green, aimed away from your eyes)."
+            : _offDark ? $"Off areas: {_offGrating.Label}, Ashley-QwQ's, the one dimmest where these views light up."
             : "Off areas: random mix (the original texture).");
+        if (_ladder)
+            lines.Add("Ladder patterns: Ashley-QwQ's Disc Neo multi-view textures (2026-11-26). Model predictions, checked on DVD-R; experimental.");
         lines.Add($"Picture: {WidthMm:0.0} x {HeightMm:0.0} mm at 12 o'clock{(_large ? ", large (edges clipped by the disc)" : "")}{moved}{copies}, " +
             $"{_n} views interleaved in {_cell:0.###} mm cells.");
         lines.AddRange(
@@ -434,12 +605,14 @@ internal sealed class StereoPairLayout : IDiffractionLayout
             "HOW TO LOOK",
             "1. Picture at 12 o'clock (top), disc upright in front of you, about " + $"{DistanceCm:0}" + " cm away.",
             "2. One small bright light (phone flashlight, bare LED) off to one SIDE, roughly level with the disc,",
-            "   not between your eyes. A dark room helps.",
+            "   not between your eyes. A dark room helps. Where exactly: see LAMP below.",
             "3. Close one eye, then the other: each eye should see its own view light up in colour.",
             "   Move the light or tilt the disc slowly until both eyes see theirs, then open both eyes.",
         ]);
         if (_n > 2) lines.Add("4. Move your head slowly left and right: the picture turns as your eyes pass from view to view.");
         lines.Add((_n > 2 ? "5" : "4") + ". If the depth looks inside-out, burn again with 'Swap eyes' ticked (or move the light to the other side).");
+        lines.Add("");
+        lines.AddRange(LampLines(Views, DistanceCm));
         if (_testTiles)
         {
             lines.AddRange(
@@ -463,45 +636,54 @@ internal sealed class StereoPairLayout : IDiffractionLayout
 
     private string DescribePatches(DvdGeometry g)
     {
-        double target = TargetSeparation(DistanceCm);
-        string A(Grating gr) => string.Join(" / ", new[] { 450.0, 550, 650 }.Select(w => gr.AngleDegrees(w, g.BitNm)).Select(a => double.IsNaN(a) ? "--" : $"{a:0.0}"));
         var lines = new List<string>
         {
             "HOLOGRAM TEST PATCHES - KEY",
             $"Disc layout preset: {g.Name} ({g.Id}), {g.SectorText}",
             "",
-            $"Left eye pattern  {PairLeft.Code,-6} angles {A(PairLeft)} deg (blue/green/red)",
-            $"Right eye pattern {PairRight.Code,-6} angles {A(PairRight)} deg",
-            $"Your eyes are ~{target:0.0} deg apart at {DistanceCm:0} cm. Cells: {_cell:0.###} mm checkerboard.",
+            "Compares Ashley-QwQ's single-lobe ladder patterns with the classic single-byte patterns, at the",
+            "same two angles, so one lamp position suits all of them. Ladder patterns are model predictions,",
+            "checked on DVD-R; this disc is how to find out whether they work on yours.",
             "",
-            "TWELVE 6 mm PATCHES AT 12 O'CLOCK, THREE ROWS (numbered on the disc)",
-            "Every row is the same four patches, left to right:  all off / left only / right only / both on.",
-            "The rows differ only in the right eye's pattern (Ashley-QwQ's test): a longer period moves its",
-            "colours toward red, so at the left eye it should slip past red into infrared and vanish.",
-            "Off areas everywhere: random mix.",
+            $"Your eyes are {EyeDelta(DistanceCm):0.000} apart in delta at {DistanceCm:0} cm. Cells: {_cell:0.###} mm checkerboard.",
+            "",
+            "THE THREE VARIANTS",
         };
-        for (int row = 0; row < _patchRight.Length; row++)
+        foreach ((string name, int left, int right, int off) in _variants)
         {
-            Grating right = Gratings[_patchRight[row]];
-            int first = row * 4 + 1;
-            string where = row == 0 ? "outer" : row == _patchRight.Length - 1 ? "inner" : "middle";
-            string name = row == 0 ? "+0 %  (as now)" : _patchRight[row] == 1 ? $"+{Grating.Stretches[row]} %  (not available for {PairRight.Code}: same as row 1)" : $"+{Grating.Stretches[row]} %";
-            lines.Add($"  {where,-6} row  {$"{first}-{first + 3}",-5}  right pattern {right.Code,-6} angles {A(right)} deg   {name}");
+            lines.Add($"  {name}:");
+            lines.Add($"      left eye  {Gratings[left].Code,-6} {PatternText(Gratings[left], g.BitNm)}");
+            lines.Add($"      right eye {Gratings[right].Code,-6} {PatternText(Gratings[right], g.BitNm)}");
+            lines.Add($"      off areas {(off == _random ? "random mix" : Gratings[off].Label)}");
         }
         lines.AddRange(
         [
             "",
+            $"TWELVE PATCHES ON ONE RING AT 12 O'CLOCK ({PatchWidth:0} mm wide, numbered on the disc, left to right)",
+            "Grouped by kind, with the three variants of each kind side by side (Ashley-QwQ's tip: keep them on",
+            "the same ring, so the position on the disc doesn't get mixed up with the pattern):",
+            "   1  2  3   all off      (classic / ladder / ladder + dark)",
+            "   4  5  6   left only",
+            "   7  8  9   right only",
+            "  10 11 12   both on",
+            "",
+        ]);
+        lines.AddRange(LampLines(Views, DistanceCm));
+        lines.AddRange(
+        [
+            "",
             "HOW TO TEST",
-            "1. Fix the disc upright (patches at the top) and the lamp in place. Don't move either, and keep",
-            "   the lamp in exactly the same place for every photo, on every disc, so the shots compare.",
+            "1. Fix the disc upright (patches at the top) and the lamp where LAMP says. Don't move either, and",
+            "   keep the lamp in exactly the same place for every photo, on every disc, so the shots compare.",
             "2. Put the camera (or your eye) where your LEFT eye would be. Lock the exposure. Photograph.",
             "3. Move it sideways by your eye spacing (~6.5 cm) to the RIGHT eye position. Photograph again.",
-            "4. In each row, what a working setup looks like:",
+            "4. Compare the three patches of each kind (they sit side by side):",
             "   - Left position:  'left only' and 'both' bright; 'right only' about as dark as 'all off'.",
             "   - Right position: 'right only' and 'both' bright; 'left only' about as dark as 'all off'.",
-            "5. Pick the row where 'right only' is darkest at the LEFT position while it still shows well at",
-            "   the RIGHT position (it turns from green toward yellow there). Use that stretch for your holograms",
-            "   ('Right view pattern' in the app, or --stretch 10 / --stretch 14).",
+            "   - 'All off' shows how dark the background is: the darker, the better the contrast.",
+            "5. The best variant is the one where each eye's 'other eye only' patch is darkest while its own",
+            "   still shows well. Use it for your holograms ('View patterns' and 'Off areas' in the app,",
+            "   or --patterns ladder and --off-dark).",
             "6. Please share the two photos and this key on the HoloStudio3D or disc-probe GitHub page.",
         ]);
         return Finish(lines);
