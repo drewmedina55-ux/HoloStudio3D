@@ -49,6 +49,31 @@ jobs:
           name: ${{ steps.zip.outputs.zip }}
           path: ${{ steps.zip.outputs.zip }}
 
+      - name: Write the release notes
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.zip.outputs.version }}
+          ZIP: ${{ steps.zip.outputs.zip }}
+          REPO: ${{ github.repository }}
+        run: |
+          # The "What's new" part is this version's section of RELEASE-NOTES.md.
+          $notes = Get-Content -Raw 'RELEASE-NOTES.md'
+          $pattern = '(?ms)^## ' + [regex]::Escape($env:VERSION) + '(?=[ \r\n])[^\n]*\n(.*?)(?=^## |\z)'
+          $m = [regex]::Match($notes, $pattern)
+          $new = if ($m.Success) { "## What's new in $env:VERSION`n`n" + $m.Groups[1].Value.Trim() + "`n`n" } else { '' }
+          $intro = @'
+          **Download `ZIPNAME`**, extract it, open the `HoloStudio3D-App` folder and run `HoloStudio3D.exe` (Windows 10/11, 64-bit). Nothing else to install.
+
+          If Windows shows "Windows protected your PC", click *More info*, then *Run anyway* (the app isn't code-signed).
+
+          Start with *Stage 1 · Measure discs* for your stack of discs, then make a hologram. Full instructions are on the app's Info page and in the README.
+
+          Hologram mode and the rainbow and tilt discs are experimental. Free software under the GPL-3.0-or-later; the source code is in this repository and in the *Source code* downloads below.
+          '@
+          $intro = $intro.Replace('ZIPNAME', $env:ZIP)
+          $all = "All changes: [RELEASE-NOTES.md](https://github.com/$env:REPO/blob/main/RELEASE-NOTES.md)`n"
+          Set-Content -LiteralPath 'release-body.md' -Value ($new + "## How to install`n`n" + $intro.Trim() + "`n`n" + $all) -Encoding utf8
+
       - name: Publish the Release
         uses: softprops/action-gh-release@v2
         with:
@@ -56,11 +81,4 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: HoloStudio3D ${{ steps.zip.outputs.version }}
           files: ${{ steps.zip.outputs.zip }}
-          body: |
-            **Download `${{ steps.zip.outputs.zip }}`**, extract it, open the `HoloStudio3D-App` folder and run `HoloStudio3D.exe` (Windows 10/11, 64-bit). Nothing else to install.
-
-            If Windows shows "Windows protected your PC", click *More info*, then *Run anyway* (the app isn't code-signed).
-
-            Start with *Stage 1 · Measure discs* for your stack of discs, then make a hologram. Full instructions are on the app's Info page and in the README.
-
-            Hologram mode and the rainbow and tilt discs are experimental. Free software under the GPL-3.0-or-later; the source code is in this repository and in the *Source code* downloads below.
+          body_path: release-body.md
