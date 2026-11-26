@@ -13,6 +13,11 @@ internal static class Program
         // The program is a windowed app; when run from a terminal with a command, borrow that terminal.
         if (args.Length > 0 && OperatingSystem.IsWindows()) AttachConsole(-1);
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+        // Dots for decimals in keys, settings and the window whatever the Windows language (the app reads
+        // real culture data now, for the keyboard layout), so behaviour is the same on every PC.
+        CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+        CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+        CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
         try { Console.OutputEncoding = System.Text.Encoding.UTF8; } catch (IOException) { }
         try
         {

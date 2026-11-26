@@ -8,7 +8,9 @@
     <RootNamespace>Disc3DLab</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Off: Windows Forms looks up the keyboard layout's culture (e.g. Russian, 0x0419) and crashes
+         in invariant mode. Program.Main pins the app's own number formatting to the invariant culture. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
     <!-- Custom controls are built in code, never in the designer. -->
     <NoWarn>$(NoWarn);WFO1000</NoWarn>
     <Product>HoloStudio3D</Product>
