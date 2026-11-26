@@ -60,7 +60,10 @@ jobs:
           $notes = Get-Content -Raw 'RELEASE-NOTES.md'
           $pattern = '(?ms)^## ' + [regex]::Escape($env:VERSION) + '(?=[ \r\n])[^\n]*\n(.*?)(?=^## |\z)'
           $m = [regex]::Match($notes, $pattern)
-          $new = if ($m.Success) { "## What's new in $env:VERSION`n`n" + $m.Groups[1].Value.Trim() + "`n`n" } else { '' }
+          # The file is wrapped at ~100 characters; GitHub shows every line break on a Release page,
+          # so join each wrapped line back onto the line before it (bullets and blank lines stay).
+          $body = if ($m.Success) { [regex]::Replace($m.Groups[1].Value.Trim(), '(?<=\S)[ \t]*\r?\n(?![ \t]*\r?\n)(?![ \t]*- )(?!#)[ \t]*', ' ') } else { '' }
+          $new = if ($m.Success) { "## What's new in $env:VERSION`n`n" + $body + "`n`n" } else { '' }
           $intro = @'
           **Download `ZIPNAME`**, extract it, open the `HoloStudio3D-App` folder and run `HoloStudio3D.exe` (Windows 10/11, 64-bit). Nothing else to install.
 
