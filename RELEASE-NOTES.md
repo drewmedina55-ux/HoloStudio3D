@@ -3,6 +3,21 @@
 What changed in each version of HoloStudio3D. Every release is the full app: download the newest
 one and replace your old `HoloStudio3D-App` folder. Your settings and presets are kept.
 
+## v1.10 (2026-11-27)
+
+- **Fixed:** installing a second measured disc type in Stage 1 failed with "preset 'discprobe-dvd-r'
+  is already in ... with different values". Each preset name now gets its own preset. Untick
+  "Replace my earlier preset with the same name" to keep an older one with the same name too.
+- **Fixed:** Stage 1 could reuse a correction file left over from an earlier measurement, which
+  doesn't fit a new one (disc-probe only warned). It's now made again from the measurement you're
+  installing.
+- **New: preset files** (Stage 1, step 5). Save the current preset to a file, one per disc type,
+  and open preset files from anywhere. Files in `Documents\HoloStudio3D\Presets` show up in every
+  disc list as "File: ...". They use Disc Image Studio's own preset format, so older versions and
+  Disc Image Studio can read them too, and your existing presets aren't touched.
+- Stage 1 is now at the top of the list, and its two-line entry no longer overlaps when Windows
+  scales text up.
+
 ## v1.09 (2026-11-26)
 
 - **New, experimental: "View patterns: Ladder"** in Hologram mode. Uses Ashley-QwQ's new

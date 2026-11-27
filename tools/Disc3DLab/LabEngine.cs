@@ -17,6 +17,17 @@ internal sealed class LabEngine : ILabBackend
         _presets = null;
     }
 
+    public string PresetFolder => DvdGeometry.PresetFolder;
+
+    public string PresetFileName(string id) => DvdGeometry.Find(id).PlainName;
+
+    public void SavePresetFile(string id, string path) => DvdGeometry.Find(id).SaveAsFile(path);
+
+    public IList<string> ImportPresetFile(string path) => DvdGeometry.ImportFile(path);
+
+    public IList<string> UserPresetIds() =>
+        DvdGeometry.BuiltIn().Where(g => g.Id.StartsWith("user:", StringComparison.Ordinal)).Select(g => g.PlainId).ToList();
+
     // ── Stage 1: disc-probe ──
 
     /// <summary>The bundled copy: disc-probe\python\python.exe and disc-probe\src next to the program.
@@ -114,7 +125,10 @@ internal sealed class LabEngine : ILabBackend
         get
         {
             int yours = Presets.Count(p => p.Id.StartsWith("user:", StringComparison.Ordinal));
-            string listed = $"{yours} of your own preset(s) from Disc Image Studio are listed first (\"Yours:\").";
+            int files = Presets.Count(p => p.Id.StartsWith("file:", StringComparison.Ordinal));
+            string listed = $"{yours} of your own preset(s) from Disc Image Studio are listed first (\"Yours:\")." +
+                (files > 0 ? $" {files} from preset files (\"File:\")." : "");
+            yours += files;
             if (DvdGeometry.UserPresetProblem != null) return (yours > 0 ? listed + " " : "") + DvdGeometry.UserPresetProblem;
             return yours > 0
                 ? listed

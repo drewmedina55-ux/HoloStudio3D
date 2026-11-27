@@ -145,5 +145,15 @@ namespace Disc3DLab
         int RunProbe(IList<string> args, Action<string> line, Action<string> status, CancellationToken cancel);
         /// <summary>Reads Disc Image Studio's preset files again (after installing a preset).</summary>
         void ReloadPresets();
+        /// <summary>Documents\HoloStudio3D\Presets: every preset file there is listed as "File: ...".</summary>
+        string PresetFolder { get; }
+        /// <summary>The preset's name without "Yours: " / "File: ", for a file name.</summary>
+        string PresetFileName(string id);
+        /// <summary>Saves one preset as a file in Disc Image Studio's preset format.</summary>
+        void SavePresetFile(string id, string path);
+        /// <summary>Checks a preset file and copies it into the Presets folder; returns the presets in it.</summary>
+        IList<string> ImportPresetFile(string path);
+        /// <summary>The ids of the presets in Disc Image Studio's own preset file.</summary>
+        IList<string> UserPresetIds();
     }
 }

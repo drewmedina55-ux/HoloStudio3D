@@ -140,10 +140,12 @@ namespace Disc3DLab
             int lineBreak = Text.IndexOf('\n');
             if (_kind == Kind.Nav && lineBreak > 0)
             {
-                // Two-line entry: the name, and a smaller note underneath.
-                TextRenderer.DrawText(g, Text.Substring(0, lineBreak), Font, new Rectangle(14, 6, Width - 18, 22), Enabled ? fore : Theme.Faint,
+                // Two-line entry: the name, and a smaller note underneath. Spaced by the fonts' real
+                // heights, so the lines don't overlap when Windows scales text up.
+                int first = Font.Height, second = Theme.Small.Height, top = Math.Max(2, (Height - first - second - 2) / 2);
+                TextRenderer.DrawText(g, Text.Substring(0, lineBreak), Font, new Rectangle(14, top, Width - 18, first), Enabled ? fore : Theme.Faint,
                     TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
-                TextRenderer.DrawText(g, Text.Substring(lineBreak + 1), Theme.Small, new Rectangle(14, 27, Width - 18, 20), _selected ? Theme.Muted : Theme.Faint,
+                TextRenderer.DrawText(g, Text.Substring(lineBreak + 1), Theme.Small, new Rectangle(14, top + first + 2, Width - 18, second), _selected ? Theme.Muted : Theme.Faint,
                     TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
                 return;
             }
@@ -609,10 +611,10 @@ namespace Disc3DLab
             int y = 78;
             foreach ((string id, string label) in new[]
             {
-                ("pair", "Hologram mode   ·  exp"), ("measure", "Stage 1 · Measure discs\nfirst time, or a new disc stack"), ("stereo", "Magic Eye-style picture"), ("test", "Rainbow test disc   ·  exp"), ("tilt", "Tilt-image disc   ·  exp"), ("help", "How to burn & view"), ("about", "Info, instructions & credits"),
+                ("measure", "Stage 1 · Measure discs\nfirst time, or a new disc stack"), ("pair", "Hologram mode   ·  exp"), ("stereo", "Magic Eye-style picture"), ("test", "Rainbow test disc   ·  exp"), ("tilt", "Tilt-image disc   ·  exp"), ("help", "How to burn & view"), ("about", "Info, instructions & credits"),
             })
             {
-                int height = label.Contains("\n") ? 52 : 38;
+                int height = label.Contains("\n") ? Math.Max(52, Theme.Body.Height + Theme.Small.Height + 16) : 38;
                 var b = new LabButton(label, LabButton.Kind.Nav) { Location = new Point(10, y), Size = new Size(210, height), BackColor = Theme.Side };
                 b.Click += (s, e) => ShowPage(id);
                 _nav[id] = b;
@@ -1207,10 +1209,25 @@ namespace Disc3DLab
             Hint(col, "Put a BLANK disc from the same spindle in first. Disc Image Studio takes the same number.");
             Add(col, new Label { UseMnemonic = false, Text = "Preset name", ForeColor = Theme.Text, AutoSize = false, Height = 20 }, 0, 2);
             _mName = Add(col, Box("My Verbatim DVD+R (measured)"), 0, 6);
-            _mReplace = Add(col, new CheckBox { Text = "Replace my earlier preset with the same id", Checked = true, ForeColor = Theme.Text, Height = 26 }, 0, 4);
+            _mReplace = Add(col, new CheckBox { Text = "Replace my earlier preset with the same name", Checked = true, ForeColor = Theme.Text, Height = 26, AutoSize = true }, 0, 4);
             _mInstall = Add(col, new LabButton("Install preset into Disc Image Studio", LabButton.Kind.Primary) { Height = 38, Enabled = false }, 4, 6);
             _mInstall.Click += (s, e) => InstallPreset();
-            Hint(col, "Then restart Disc Image Studio and pick it from the preset list. HoloStudio3D picks it up straight away.");
+            Hint(col, "Then restart Disc Image Studio and pick it from the preset list. HoloStudio3D picks it up straight away. Each name gets its own preset; untick the box to keep an earlier one with the same name too.");
+
+            Section(col, "5 · Preset files  (optional)");
+            var saveFile = Add(col, new LabButton("Save the current preset to a file…") { Height = 34 }, 0, 4);
+            saveFile.Click += (s, e) => SavePresetToFile();
+            var openFile = Add(col, new LabButton("Open a preset file…") { Height = 34 }, 0, 4);
+            openFile.Click += (s, e) => OpenPresetFile();
+            var openFolder = Add(col, new LabButton("Show the Presets folder") { Height = 30 }, 0, 4);
+            openFolder.Click += (s, e) => Safe(() =>
+            {
+                Directory.CreateDirectory(_backend.PresetFolder);
+                Process.Start(new ProcessStartInfo("explorer.exe", "\"" + _backend.PresetFolder + "\"") { UseShellExecute = false });
+            });
+            Hint(col, "Keep one file per disc type (e.g. one for each brand or spindle). The current preset is the one picked in the disc lists. " +
+                      "Files in Documents\\HoloStudio3D\\Presets show up in every disc list as \"File: …\"; opening a file from anywhere else copies it there. " +
+                      "They use Disc Image Studio's own preset format, so you can share them or keep them as a backup.");
 
             Section(col, "Any disc-probe command");
             _mCommand = Add(col, Box(""), 0, 4);
@@ -1362,7 +1379,7 @@ namespace Disc3DLab
             {
                 if (exit == 0 && File.Exists(ResolveProbePath(file, _backend.ProbeWorkFolder)))
                 {
-                    AppendLog("Correction file written. Now running the command you asked for.");
+                    AppendLog("Correction file written from this measurement. Now running the command you asked for.");
                     RunProbeCore(args, title, done);
                 }
                 else
@@ -1387,7 +1404,6 @@ namespace Disc3DLab
             int at = args.IndexOf("--correction");
             if (at < 0 || at + 1 >= args.Count) return null;
             string file = args[at + 1];
-            if (File.Exists(ResolveProbePath(file, workFolder))) return null;
 
             int g = args.IndexOf("--geo");
             string geo = g >= 0 && g + 1 < args.Count ? args[g + 1] : "latest";
@@ -1406,7 +1422,38 @@ namespace Disc3DLab
             }
             else if (geo.EndsWith("summary.json", StringComparison.OrdinalIgnoreCase))
                 geo = Path.GetDirectoryName(geo);
+            // An existing file is kept only if it was made from this same measurement. One left over from
+            // an earlier geo run still loads, but it doesn't fit (disc-probe only warns), so make it again.
+            string existing = ResolveProbePath(file, workFolder);
+            if (File.Exists(existing) && !CorrectionFromOtherRun(existing, geo)) return null;
             return new List<string> { "tool", "geo_polyfit.py", geo, "--write-correction", file, "--order", "quadratic" };
+        }
+
+        /// <summary>
+        /// True if a correction file names a different geo run than this one. geo_polyfit writes its
+        /// "source" as "tools/geo_polyfit.py results\geo-E-20261108-213642"; anything unreadable is kept.
+        /// </summary>
+        internal static bool CorrectionFromOtherRun(string correctionFile, string geo)
+        {
+            try
+            {
+                using (var json = System.Text.Json.JsonDocument.Parse(File.ReadAllText(correctionFile)))
+                {
+                    // Same rule as disc-probe's own check: "source", or "base_source" once grid scans were
+                    // added, if it is a geo_polyfit command. Corrections made from grid scans are kept.
+                    const string tool = "tools/geo_polyfit.py ";
+                    string made = null;
+                    foreach (string key in new[] { "source", "base_source" })
+                        if (json.RootElement.TryGetProperty(key, out System.Text.Json.JsonElement v) && v.ValueKind == System.Text.Json.JsonValueKind.String
+                            && v.GetString().StartsWith(tool, StringComparison.Ordinal)) { made = v.GetString().Substring(tool.Length); break; }
+                    if (made == null) return false;
+                    string run = made.Trim().TrimEnd('\\', '/').Split('\\', '/').Last();
+                    string wanted = (geo ?? "").TrimEnd('\\', '/').Split('\\', '/').Last();
+                    return run.StartsWith("geo-", StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(run, wanted, StringComparison.OrdinalIgnoreCase);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException) { return false; }
         }
 
         private async void RunProbeCore(List<string> args, string title, Action<int> done = null)
@@ -1579,7 +1626,21 @@ namespace Disc3DLab
                 args.Add(a);
             }
             args.AddRange(new[] { "--sectors", sectors, "--install" });
-            if (_mName.Text.Trim().Length > 0) { args.Add("--name"); args.Add(_mName.Text.Trim()); }
+            string name = _mName.Text.Trim();
+            if (name.Length > 0) { args.Add("--name"); args.Add(name); }
+            // disc-probe installs every preset under the same id unless told otherwise, so a second disc
+            // type would clash with the first. Give each name its own id; keep both if Replace is off.
+            if (!args.Contains("--id"))
+            {
+                string id = PresetIdFor(name);
+                if (!_mReplace.Checked)
+                {
+                    var taken = new HashSet<string>(_backend.UserPresetIds(), StringComparer.OrdinalIgnoreCase);
+                    string stem = id;
+                    for (int i = 2; taken.Contains(id); i++) id = stem + "-" + i.ToString(CultureInfo.InvariantCulture);
+                }
+                args.Add("--id"); args.Add(id);
+            }
             if (_mReplace.Checked) args.Add("--replace");
             RunProbeAsync(args, "Installing preset", exit =>
             {
@@ -1589,6 +1650,79 @@ namespace Disc3DLab
                 _mVerdict.Text = "Preset installed. Restart Disc Image Studio to see it; it's already selected here.";
                 _mVerdict.ForeColor = Theme.Ok;
             });
+        }
+
+        /// <summary>A preset id from its name: "My Memorex DVD+R (measured)" -> discprobe-my-memorex-dvd-r-measured.</summary>
+        internal static string PresetIdFor(string name)
+        {
+            var id = new System.Text.StringBuilder();
+            foreach (char c in name.ToLowerInvariant())
+            {
+                if (c is >= 'a' and <= 'z' or >= '0' and <= '9') id.Append(c);
+                else if (id.Length > 0 && id[id.Length - 1] != '-') id.Append('-');
+            }
+            string slug = id.ToString().Trim('-');
+            if (slug.Length > 48) slug = slug.Substring(0, 48).Trim('-');
+            return "discprobe-" + (slug.Length > 0 ? slug : "dvd-r");
+        }
+
+        private void SavePresetToFile()
+        {
+            string id = Preset;
+            string name = _backend.PresetFileName(id);
+            string safe = string.Concat(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).Trim();
+            Directory.CreateDirectory(_backend.PresetFolder);
+            using (var dialog = new SaveFileDialog
+            {
+                Filter = "Preset files (*.json)|*.json",
+                InitialDirectory = _backend.PresetFolder,
+                FileName = (safe.Length > 0 ? safe : "preset") + ".json",
+                OverwritePrompt = true,
+            })
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                try
+                {
+                    _backend.SavePresetFile(id, dialog.FileName);
+                    bool inFolder = string.Equals(Path.GetDirectoryName(Path.GetFullPath(dialog.FileName))?.TrimEnd('\\'),
+                        _backend.PresetFolder.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
+                    if (inFolder) { _backend.ReloadPresets(); RefreshPresetCombos(id); }
+                    _mVerdict.Text = "Saved \"" + name + "\" to " + Path.GetFileName(dialog.FileName) +
+                        (inFolder ? ". It's also in the disc lists as \"File: " + name + "\"." : ". Open it here any time with \"Open a preset file\".");
+                    _mVerdict.ForeColor = Theme.Ok;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { Error(ex); }
+            }
+        }
+
+        private void OpenPresetFile()
+        {
+            using (var dialog = new OpenFileDialog { Filter = "Preset files (*.json)|*.json|All files|*.*", InitialDirectory = _backend.PresetFolder })
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                try
+                {
+                    IList<string> names = _backend.ImportPresetFile(dialog.FileName);
+                    _backend.ReloadPresets();
+                    PresetInfo added = _backend.Presets.LastOrDefault(p => p.Id.StartsWith("file:", StringComparison.Ordinal) && names.Any(n => p.Name.EndsWith(n, StringComparison.Ordinal)));
+                    RefreshPresetCombos(added?.Id);
+                    _mVerdict.Text = "Added " + string.Join(", ", names) + ". Pick it in any disc list as \"File: …\".";
+                    _mVerdict.ForeColor = Theme.Ok;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
+                    or System.Text.Json.JsonException or ArgumentException) { Error(ex); }
+            }
+        }
+
+        private void RefreshPresetCombos(string select)
+        {
+            foreach (ComboBox combo in _presetBoxes)
+            {
+                combo.Items.Clear();
+                foreach (PresetInfo p in _backend.Presets) combo.Items.Add(p);
+            }
+            PresetInfo pick = _backend.Presets.FirstOrDefault(p => p.Id == select) ?? _backend.Presets.FirstOrDefault();
+            foreach (ComboBox combo in _presetBoxes) combo.SelectedItem = pick;
         }
 
         private void RefreshPresetCombos()
@@ -1895,7 +2029,7 @@ namespace Disc3DLab
 
         // ───────────── about page ─────────────
 
-        internal const string AppVersion = "v1.09";
+        internal const string AppVersion = "v1.10";
         internal const string WebsiteUrl = "https://drewmedina.com";
         internal const string DisRepoUrl = "https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio";
         internal const string ProbeRepoUrl = "https://github.com/Ashley-QwQ/disc-probe";

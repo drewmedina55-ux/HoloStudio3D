@@ -97,6 +97,10 @@ The window has these sections in the sidebar:
   as Disc Image Studio (`%LOCALAPPDATA%\DiscImageStudio\disc-presets.json`), so presets saved by
   Disc Image Studio (this edition or the original, 1.5.0 included) or installed by disc-probe show
   up in every disc section as "Yours: ...". Restart HoloStudio3D after adding one.
+  **Preset files** (Stage 1, step 5): save the current preset to a `.json` file, one per disc
+  type, and open preset files from anywhere. Files in `Documents\HoloStudio3D\Presets` show up in
+  every disc section as "File: ...". They use Disc Image Studio's own preset format (schema 4), so
+  older HoloStudio3D versions and Disc Image Studio 1.4 and 1.5 can read them too.
 - **Magic Eye-style picture:** live preview as you move the sliders. Drop a depth picture or 3D model
   onto the box, then *Save PNG*.
 - **Rainbow test disc:** the ring layout and key, then *Make test disc image*, with a progress bar

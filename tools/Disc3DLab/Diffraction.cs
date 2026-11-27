@@ -41,16 +41,34 @@ internal sealed record DvdGeometry(string Id, string Name, uint Sectors, double 
     {
         List<DvdGeometry> list = [];
         UserPresetProblem = null;
+        List<string> problems = [];
         try
         {
             string path = UserPresetPath;
-            if (File.Exists(path)) list.AddRange(ReadUserPresets(path));
+            if (File.Exists(path)) list.AddRange(ReadUserPresets(path, problems));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
             or System.Text.Json.JsonException)
         {
-            UserPresetProblem = "Couldn't read your presets file (" + exception.Message + "). Using the built-in presets.";
+            problems.Add("Couldn't read your presets file (" + exception.Message + "). Using the built-in presets.");
         }
+        // Preset files you saved or opened (Stage 1 > Preset files), one disc type per file if you like.
+        try
+        {
+            if (Directory.Exists(PresetFolder))
+                foreach (string file in Directory.GetFiles(PresetFolder, "*.json").OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+                {
+                    string stem = Path.GetFileNameWithoutExtension(file);
+                    try { list.AddRange(ReadUserPresets(file, problems, "file:" + stem + ":", "File: ")); }
+                    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                        or System.Text.Json.JsonException)
+                    {
+                        problems.Add($"Couldn't read the preset file {Path.GetFileName(file)} ({exception.Message}).");
+                    }
+                }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
+        if (problems.Count > 0) UserPresetProblem = string.Join(" ", problems);
         list.AddRange(DiscPresetJsonStore.LoadBuiltIn().DvdPresets
             .Where(p => p.OuterRadiusMm > 50) // 12 cm discs only
             .Select(p => From(p, p.Id, p.DisplayName)));
@@ -63,7 +81,8 @@ internal sealed record DvdGeometry(string Id, string Name, uint Sectors, double 
     /// needs are read and anything else is ignored, so a newer file still works; a preset that can't
     /// be used is skipped (and named) instead of losing all of them. The file is never written.
     /// </summary>
-    internal static List<DvdGeometry> ReadUserPresets(string path)
+    internal static List<DvdGeometry> ReadUserPresets(string path, List<string>? problems = null,
+        string idPrefix = "user:", string namePrefix = "Yours: ")
     {
         List<DvdGeometry> list = [];
         List<string> skipped = [];
@@ -91,7 +110,7 @@ internal sealed record DvdGeometry(string Id, string Name, uint Sectors, double 
                 if (!(inner > 0 && outer > inner && outer <= 60)) throw new InvalidDataException("radii");
                 // Builds the track once to check the pitch coefficients give a sensible spiral.
                 DvdTrackGeometry.Create(inner, outer, total * 38688d * 133.3e-6, linear, quadratic, cubic);
-                list.Add(new DvdGeometry("user:" + id, "Yours: " + name, (uint)total, inner, outer, 133.3,
+                list.Add(new DvdGeometry(idPrefix + id, namePrefix + name, (uint)total, inner, outer, 133.3,
                     linear, quadratic, cubic, usable is { } v ? (uint)v : null));
             }
             catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException
@@ -101,8 +120,86 @@ internal sealed record DvdGeometry(string Id, string Name, uint Sectors, double 
             }
         }
         if (skipped.Count > 0)
-            UserPresetProblem = $"Skipped {skipped.Count} of your presets that HoloStudio3D can't use ({string.Join("; ", skipped)}).";
+        {
+            string where = idPrefix == "user:" ? "your presets" : "the presets in " + Path.GetFileName(path);
+            string message = $"Skipped {skipped.Count} of {where} that HoloStudio3D can't use ({string.Join("; ", skipped)}).";
+            if (problems != null) problems.Add(message); else UserPresetProblem = message;
+        }
         return list;
+    }
+
+    /// <summary>Preset files: Documents\HoloStudio3D\Presets. Every *.json there shows up as "File: ...".</summary>
+    public static string PresetFolder
+    {
+        get
+        {
+            string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            if (string.IsNullOrEmpty(documents)) documents = Environment.CurrentDirectory;
+            return Path.Combine(documents, "HoloStudio3D", "Presets");
+        }
+    }
+
+    /// <summary>The preset's own id, without HoloStudio3D's "user:" / "file:name:" prefix.</summary>
+    public string PlainId => Id.Contains(':') ? Id[(Id.LastIndexOf(':') + 1)..] : Id;
+
+    /// <summary>The preset's own name, without "Yours: " / "File: ".</summary>
+    public string PlainName => Name.StartsWith("Yours: ", StringComparison.Ordinal) ? Name[7..]
+        : Name.StartsWith("File: ", StringComparison.Ordinal) ? Name[6..] : Name;
+
+    /// <summary>
+    /// Writes one preset as a file in Disc Image Studio's own preset format (schema 4, the same fields
+    /// as disc-presets.json), so older HoloStudio3D versions and Disc Image Studio 1.4 and 1.5 can read
+    /// it too. usableSectors is only written when the preset has one (1.4-based versions don't know it).
+    /// </summary>
+    public void SaveAsFile(string path)
+    {
+        var preset = new System.Text.Json.Nodes.JsonObject
+        {
+            ["id"] = PlainId,
+            ["displayName"] = PlainName,
+            ["description"] = "Saved from HoloStudio3D",
+            ["totalSectors"] = Sectors,
+            ["innerRadiusMm"] = InnerMm,
+            ["outerRadiusMm"] = OuterMm,
+            ["channelBitLengthNm"] = 133.3,
+            ["pitchLinear"] = PitchLinear,
+            ["pitchQuadratic"] = PitchQuadratic,
+            ["pitchCubic"] = PitchCubic,
+        };
+        if (UsableSectors is { } usable) preset["usableSectors"] = usable;
+        var document = new System.Text.Json.Nodes.JsonObject
+        {
+            ["schemaVersion"] = DiscPresetJsonStore.CurrentSchemaVersion,
+            ["cdPresets"] = new System.Text.Json.Nodes.JsonArray(),
+            ["dvdPresets"] = new System.Text.Json.Nodes.JsonArray(preset),
+            ["bluRayPresets"] = new System.Text.Json.Nodes.JsonArray(),
+        };
+        string? folder = Path.GetDirectoryName(Path.GetFullPath(path));
+        if (!string.IsNullOrEmpty(folder)) Directory.CreateDirectory(folder);
+        File.WriteAllText(path, document.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    /// <summary>
+    /// Adds a preset file from anywhere: checks it has a DVD preset HoloStudio3D can use, then copies
+    /// it into the Presets folder (unless it is already there). Returns the names it added.
+    /// </summary>
+    public static List<string> ImportFile(string path)
+    {
+        List<string> problems = [];
+        List<DvdGeometry> found = ReadUserPresets(path, problems, "check:", "");
+        if (found.Count == 0)
+            throw new InvalidDataException(problems.Count > 0 ? string.Join(" ", problems)
+                : "There's no 12 cm DVD preset in that file that HoloStudio3D can use.");
+        string folder = PresetFolder;
+        Directory.CreateDirectory(folder);
+        string full = Path.GetFullPath(path);
+        if (!string.Equals(Path.GetDirectoryName(full)?.TrimEnd('\\', '/'), folder.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
+        {
+            string stem = Path.GetFileNameWithoutExtension(full), target = Path.Combine(folder, stem + ".json");
+            for (int i = 2; File.Exists(target); i++) target = Path.Combine(folder, $"{stem} ({i}).json");
+            File.Copy(full, target);
+        }
+        return found.Select(g => g.Name).ToList();
     }
 
     private static bool TryGet(System.Text.Json.JsonElement e, string name, out System.Text.Json.JsonElement value)
