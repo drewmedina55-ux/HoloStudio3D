@@ -72,7 +72,7 @@ Nothing else to install. If Windows shows "Windows protected your PC", click *Mo
 1. Download the setup zip and extract it somewhere simple, such as `C:\HoloStudio3D-Setup`.
 2. Install the **.NET 10 SDK** from Microsoft (dotnet.microsoft.com, *Download .NET 10*, the
    Windows x64 SDK installer). You only need to do this once.
-3. In the extracted folder, double-click `INSTALL-BUILD.bat`. Stay online the first time: it
+3. In the extracted folder, double-click `INSTALL-BUILD.bat` (called `Build-English.bat` before v1.10). Stay online the first time: it
    downloads a private copy of Python for Stage 1. It takes a few minutes.
 4. When it's done, the `HoloStudio3D-App` folder opens. Double-click `HoloStudio3D.exe`.
 

@@ -24,6 +24,17 @@ An experimental companion tool for Disc Image Studio (English Edition), by Drew 
 under a single light, with each eye seeing a slightly different view. You make it from your own
 pictures, a picture plus its depth map, or a 3D model.
 
+## What's new in v1.10
+
+- **Preset files:** save a disc preset to a file, one per disc type, and open it again later from
+  the **Open…** button next to any "Your DVD" list. You don't need to repeat Stage 1 for discs you've
+  already measured.
+- **Fixed:** installing a second measured disc type in Stage 1 no longer fails, and Stage 1 no longer
+  reuses a correction file left over from an earlier measurement.
+- Stage 1 is now at the top of the sidebar, and the build file is now called **`INSTALL-BUILD.bat`**.
+
+Every change, version by version: [RELEASE-NOTES.md](RELEASE-NOTES.md).
+
 ## Making a hologram
 
 Open **Hologram mode** (the top of the sidebar). Choose what to show, set a few sliders, and click
@@ -96,7 +107,7 @@ Nothing else to install. If Windows shows "Windows protected your PC", click *Mo
 1. Download the setup zip and extract it somewhere simple, such as `C:\HoloStudio3D-Setup`.
 2. Install the **.NET 10 SDK** from Microsoft (dotnet.microsoft.com, *Download .NET 10*, the
    Windows x64 SDK installer). You only need to do this once.
-3. In the extracted folder, double-click `INSTALL-BUILD.bat`. Stay online the first time: it
+3. In the extracted folder, double-click `INSTALL-BUILD.bat` (called `Build-English.bat` before v1.10). Stay online the first time: it
    downloads a private copy of Python for Stage 1. It takes a few minutes.
 4. When it's done, the `HoloStudio3D-App` folder opens. Double-click `HoloStudio3D.exe`.
 
@@ -112,11 +123,12 @@ Double-click `HoloStudio3D.exe` and the HoloStudio3D window opens. It's a normal
 program (Windows Forms): no browser, no Edge, no console box, and nothing goes online (the links on the Info page open your default browser only when you click them).
 
 The window has these sections in the sidebar:
-- **Hologram mode** (at the top): a 3D picture built from 2 to 7 views. Use a picture + depth map,
+- **Stage 1 · Measure discs (first time, or a new disc stack)** (at the top): measures your own discs
+  with disc-probe and installs the result as a preset, so pictures land straight instead of streaked.
+  Do this once per spindle of discs, or open a preset file you saved earlier instead.
+- **Hologram mode:** a 3D picture built from 2 to 7 views. Use a picture + depth map,
   a 3D model (.obj/.stl), several pictures (lenticular frames), a side-by-side 3D picture, or a
   left and right picture; set your viewing distance, see the layout, then make the disc.
-- **Stage 1 · Measure discs (first time, or a new disc stack):** measures your own discs with disc-probe and installs the result as a
-  preset, so pictures land straight instead of streaked. Do this once per spindle of discs.
 - **Magic Eye-style picture:** live preview as you move the sliders. Drop a depth picture or 3D model
   onto the box, then *Save PNG*.
 - **Rainbow test disc:** the ring layout and key, then *Make test disc image*, with a progress bar
@@ -161,12 +173,18 @@ drive reads a burned disc to measure the spiral exactly, with no photos and no c
    it appears as a button under *Suggested next steps*.
 4. **Measure geometry** (about 5 min). The verdict appears at the top. If it suggests a correction
    or another speed, click the suggested step. When a suggested command uses `--correction
-   correction.json` and that file isn't there yet, HoloStudio3D writes it from your measurement
-   first, then runs the command.
+   correction.json` and that file isn't there yet, or was made from an earlier measurement,
+   HoloStudio3D writes it from this measurement first, then runs the command.
 5. **Install as a preset:** put a *blank* disc from the same spindle in, click **Read blank disc**
    to get its sector count, name the preset, then **Install preset into Disc Image Studio**. It's
    written to Disc Image Studio's preset list (backed up first). Restart Disc Image Studio and pick
-   it. HoloStudio3D selects it straight away in every section.
+   it. HoloStudio3D selects it straight away in every section. Each name gets its own preset, so
+   you can install one for every disc type.
+6. **Preset files (optional):** **Save the current preset to a file** keeps it as a `.json` file,
+   one per disc type, to back up or share. **Open a preset file** (or **Open…** next to any "Your
+   DVD" list) uses one again, so you can skip Stage 1 for discs you've already measured. Files in
+   `Documents\HoloStudio3D\Presets` show up in every disc list as "File: …". They use Disc Image
+   Studio's own preset format, so older versions can read them too.
 
 **If the measurement stops partway** ("a whole-turn count is probably wrong"), usually because of a
 flaw or gap on the measuring disc, a **Measure without the trouble spot** button appears. It reruns
