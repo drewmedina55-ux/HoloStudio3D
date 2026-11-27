@@ -842,6 +842,19 @@ namespace Disc3DLab
             return combo;
         }
 
+        /// <summary>The preset list with an "Open…" button, to use a preset file without going through Stage 1.</summary>
+        private Panel PresetRow()
+        {
+            var row = new Panel { Width = ColumnWidth, Height = 32, BackColor = Theme.Back };
+            ComboBox combo = PresetCombo();
+            combo.SetBounds(0, 3, ColumnWidth - 92, 26);
+            combo.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
+            var open = new LabButton("Open…") { Width = 84, Height = 30, Location = new Point(ColumnWidth - 84, 1), Anchor = AnchorStyles.Top | AnchorStyles.Right };
+            open.Click += (s, e) => OpenPresetFile();
+            row.Controls.Add(combo); row.Controls.Add(open);
+            return row;
+        }
+
         private string Preset => (_presetBoxes[0].SelectedItem as PresetInfo)?.Id ?? "dvd-5-120mm";
 
         // ───────────── hidden-3D page ─────────────
@@ -986,7 +999,7 @@ namespace Disc3DLab
         {
             Panel page = NewPage("test", out FlowLayoutPanel col, out Panel stage);
             Section(col, "Your DVD", true);
-            Add(col, PresetCombo(), 0, 4);
+            Add(col, PresetRow(), 0, 4);
             Hint(col, "Only moves where the rings land; the colours don't depend on it.");
             Hint(col, _backend.PresetNote, Theme.Muted);
             Section(col, "Save to");
@@ -1036,8 +1049,8 @@ namespace Disc3DLab
             _threshold = Add(col, new Slider("Cut-off", 0.05, 0.95, 0.05, 0.5, v => Math.Round(v * 100) + "%") { Visible = false }, 0, 4);
             _threshold.Changed += (s, e) => QueueTilt();
             Section(col, "Your DVD");
-            Add(col, PresetCombo(), 0, 4);
-            Hint(col, "Use your measured preset (\"Yours:\") so the picture lands where it should, not streaked.", Theme.Muted);
+            Add(col, PresetRow(), 0, 4);
+            Hint(col, "Use your measured preset (\"Yours:\") so the picture lands where it should, not streaked. Already have a preset file for this disc type? Click Open… to use it, no need for Stage 1.", Theme.Muted);
             Section(col, "Save to");
             Add(col, FolderRow(), 0, 6);
             _tiltName = Add(col, Box("tilt-image"), 0, 8);
@@ -1706,8 +1719,10 @@ namespace Disc3DLab
                     _backend.ReloadPresets();
                     PresetInfo added = _backend.Presets.LastOrDefault(p => p.Id.StartsWith("file:", StringComparison.Ordinal) && names.Any(n => p.Name.EndsWith(n, StringComparison.Ordinal)));
                     RefreshPresetCombos(added?.Id);
-                    _mVerdict.Text = "Added " + string.Join(", ", names) + ". Pick it in any disc list as \"File: …\".";
+                    string message = "Added " + string.Join(", ", names) + ". It's selected now, and listed in every disc list as \"File: …\".";
+                    _mVerdict.Text = message;
                     _mVerdict.ForeColor = Theme.Ok;
+                    if (!_pages["measure"].Visible) MessageBox.Show(this, message, "HoloStudio3D", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException
                     or System.Text.Json.JsonException or ArgumentException) { Error(ex); }
@@ -1868,8 +1883,8 @@ namespace Disc3DLab
             Hint(col, "What fills the dark parts of the picture. Random mix is the original; it is made of the same patterns as the views, so it lights up a little where they do. Dark (experimental) uses Ashley-QwQ's dark backgrounds, picking the one that stays dimmest where your views light up. Fixed (experimental) sends its light away from your eyes, but in her photos it wasn't darker.");
 
             Section(col, "Your DVD");
-            Add(col, PresetCombo(), 0, 4);
-            Hint(col, "Use your measured preset (\"Yours:\") so the picture lands where it should, not streaked.", Theme.Muted);
+            Add(col, PresetRow(), 0, 4);
+            Hint(col, "Use your measured preset (\"Yours:\") so the picture lands where it should, not streaked. Already have a preset file for this disc type? Click Open… to use it, no need for Stage 1.", Theme.Muted);
             Section(col, "Save to");
             Add(col, FolderRow(), 0, 6);
             _pairName = Add(col, Box("hologram"), 0, 8);
@@ -2078,7 +2093,7 @@ namespace Disc3DLab
             H("Instructions, step by step", 14);
             P("Setting up (once)", Theme.Muted);
             Step("Unzip the setup folder", "Unzip the whole package somewhere simple, such as C:\\DiscImageStudio-English. If you were given a ready-built folder with HoloStudio3D.exe in it, skip to step 3.");
-            Step("Build the apps", "Install the .NET 10 SDK from Microsoft if you don't have it, then double-click Build-English.bat. It takes a few minutes and needs the internet once, to fetch a private copy of Python for Stage 1. When it finishes, the HoloStudio3D-App folder opens with everything in it.");
+            Step("Build the apps", "Install the .NET 10 SDK from Microsoft if you don't have it, then double-click INSTALL-BUILD.bat. It takes a few minutes and needs the internet once, to fetch a private copy of Python for Stage 1. When it finishes, the HoloStudio3D-App folder opens with everything in it.");
             Step("Open HoloStudio3D", "Run HoloStudio3D-App\\HoloStudio3D.exe. Under OUTPUT FOLDER in the sidebar, click Change… to choose where discs are saved (default Documents\\HoloStudio3D, with a folder for each design). Disc Image Studio itself is DiscImageStudio.exe in the same folder.");
             P("Stage 1: once for each new stack of discs", Theme.Muted);
             Step("Burn a measuring disc", "Open Stage 1, pick the drive you'll burn with, and click Make measuring disc image. Burn measuring-disc.iso with ImgBurn (Write image file to disc) at the slowest speed, then put it back in the drive. Keep that disc; never put a picture on it.");

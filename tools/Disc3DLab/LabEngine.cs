@@ -45,9 +45,9 @@ internal sealed class LabEngine : ILabBackend
         get
         {
             if (!File.Exists(Path.Combine(ProbeSource, "labrun.py")) || !Directory.Exists(Path.Combine(ProbeSource, "discprobe")))
-                return "disc-probe isn't in this build (the disc-probe folder next to HoloStudio3D.exe is missing). Run Build-English.bat again.";
+                return "disc-probe isn't in this build (the disc-probe folder next to HoloStudio3D.exe is missing). Run INSTALL-BUILD.bat again.";
             if (!File.Exists(ProbePython))
-                return "disc-probe's private Python wasn't set up. Run Build-English.bat again while connected to the internet.";
+                return "disc-probe's private Python wasn't set up. Run INSTALL-BUILD.bat again while connected to the internet.";
             return null;
         }
     }

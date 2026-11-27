@@ -15,6 +15,8 @@ one and replace your old `HoloStudio3D-App` folder. Your settings and presets ar
   and open preset files from anywhere. Files in `Documents\HoloStudio3D\Presets` show up in every
   disc list as "File: ...". They use Disc Image Studio's own preset format, so older versions and
   Disc Image Studio can read them too, and your existing presets aren't touched.
+- **New: "Open…" next to every disc list.** Use a preset file straight away, without Stage 1.
+- The build file is now called **`INSTALL-BUILD.bat`** (it was `Build-English.bat`).
 - Stage 1 is now at the top of the list, and its two-line entry no longer overlaps when Windows
   scales text up.
 

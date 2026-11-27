@@ -28,7 +28,7 @@ experimental diffraction (tilt-image) DVDs. See `HOLOSTUDIO3D.md`.
 ## Build (Windows)
 
 1. Install the **.NET 10 SDK**: https://dotnet.microsoft.com/download/dotnet/10.0
-2. Double-click **`Build-English.bat`**.
+2. Double-click **`INSTALL-BUILD.bat`**.
 3. Your apps are `HoloStudio3D-App\HoloStudio3D.exe` and `HoloStudio3D-App\DiscImageStudio.exe` (the folder opens by itself when the build finishes). Each is a
    single self-contained file, so the computer running it doesn't need .NET installed.
 
